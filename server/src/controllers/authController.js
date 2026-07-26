@@ -22,6 +22,11 @@ export async function googleLogin(req, res) {
     });
     const payload = ticket.getPayload();
 
+    // auto-promote the configured admin email (handy for demos)
+    const isAdmin =
+      process.env.ADMIN_EMAIL &&
+      payload.email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
+
     let user = await User.findOne({ googleId: payload.sub });
     if (!user) {
       user = await User.create({
@@ -29,7 +34,11 @@ export async function googleLogin(req, res) {
         name: payload.name,
         email: payload.email,
         picture: payload.picture,
+        role: isAdmin ? 'admin' : 'student',
       });
+    } else if (isAdmin && user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save();
     }
 
     const token = signToken(user);
