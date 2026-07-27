@@ -31,14 +31,32 @@ export function AuthProvider({ children }) {
     return saveAuth(res.data);
   }
 
+  // returns { needsVerification: true } if the account isn't email-verified yet
   async function loginWithPassword(email, password) {
-    const res = await api.post('/auth/login', { email, password });
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      saveAuth(res.data);
+      return { user: res.data.user };
+    } catch (err) {
+      if (err.response?.status === 403 && err.response.data?.needsVerification)
+        return { needsVerification: true, email };
+      throw err;
+    }
+  }
+
+  // register never logs in directly — it triggers an OTP email
+  async function register(name, email, password) {
+    await api.post('/auth/register', { name, email, password });
+    return { needsVerification: true, email };
+  }
+
+  async function verifyOtp(email, code) {
+    const res = await api.post('/auth/verify-otp', { email, code });
     return saveAuth(res.data);
   }
 
-  async function register(name, email, password) {
-    const res = await api.post('/auth/register', { name, email, password });
-    return saveAuth(res.data);
+  async function resendOtp(email) {
+    await api.post('/auth/resend-otp', { email });
   }
 
   function logout() {
@@ -48,7 +66,17 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, loginWithGoogle, loginWithPassword, register, logout, setUser }}
+      value={{
+        user,
+        loading,
+        loginWithGoogle,
+        loginWithPassword,
+        register,
+        verifyOtp,
+        resendOtp,
+        logout,
+        setUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

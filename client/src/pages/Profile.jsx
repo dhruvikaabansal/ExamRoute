@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import LocationPicker from '../components/LocationPicker';
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -75,20 +76,12 @@ export default function Profile() {
         </div>
         <div>
           <label className="block text-sm font-medium">Home location</label>
-          <div className="flex gap-2 mt-1">
-            <input
-              className="border rounded p-2 w-1/2"
-              placeholder="Latitude"
-              value={coords.lat}
-              onChange={(e) => setCoords({ ...coords, lat: e.target.value })}
-            />
-            <input
-              className="border rounded p-2 w-1/2"
-              placeholder="Longitude"
-              value={coords.lng}
-              onChange={(e) => setCoords({ ...coords, lng: e.target.value })}
-            />
-          </div>
+          <p className="text-xs text-slate-400 mb-1">Tap on the map to drop your home pin.</p>
+          <LocationPicker
+            lat={coords.lat}
+            lng={coords.lng}
+            onChange={(lat, lng) => setCoords({ lat, lng })}
+          />
           <button type="button" onClick={useMyLocation} className="text-sm text-brand mt-2 hover:underline">
             📍 Use my current location
           </button>

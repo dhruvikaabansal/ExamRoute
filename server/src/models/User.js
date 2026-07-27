@@ -19,6 +19,11 @@ const userSchema = new mongoose.Schema(
     googleId: { type: String, index: true, sparse: true },
     passwordHash: { type: String }, // only for local (email+password) accounts
 
+    // email verification (OTP). Google users are auto-verified by Google.
+    emailVerified: { type: Boolean, default: false },
+    otpCode: { type: String },
+    otpExpires: { type: Date },
+
     picture: { type: String },
     phone: { type: String }, // reusable across exams
     role: { type: String, enum: ['student', 'admin'], default: 'student' },
@@ -30,10 +35,12 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ homeLocation: '2dsphere' });
 
-// never leak the password hash in API responses
+// never leak secrets in API responses
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
     delete ret.passwordHash;
+    delete ret.otpCode;
+    delete ret.otpExpires;
     return ret;
   },
 });

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/client';
+import MapView from '../components/MapView';
 
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
@@ -41,6 +43,7 @@ export default function Admin() {
   }
 
   useEffect(() => {
+    setMsg(''); // clear stale "0 buses" message when switching session
     if (sessionId) loadBuses(sessionId).catch(() => setBuses([]));
     else setBuses([]);
   }, [sessionId]);
@@ -120,6 +123,21 @@ export default function Admin() {
             <p className="text-xs text-slate-500 mt-2">
               Arrives at center by {fmtDateTime(bus.arrivalTime)} ({bus.totalDurationMin} min travel)
             </p>
+
+            <div className="mt-3">
+              <MapView
+                center={bus.center?.location?.coordinates}
+                stops={bus.route}
+                route={bus.route}
+                height={220}
+              />
+            </div>
+            <Link
+              to={`/drive/${bus._id}`}
+              className="inline-block mt-2 text-sm text-brand hover:underline"
+            >
+              🚍 Open driver page (share live location)
+            </Link>
           </div>
         ))}
         {buses.length === 0 && (

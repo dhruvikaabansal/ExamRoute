@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { payBooking } from '../lib/pay';
+import LocationPicker from '../components/LocationPicker';
 
-function loadRazorpay() {
-  return new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const s = document.createElement('script');
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
+// A few Rajasthan home presets so the demo has sensible distances
+const PRESETS = [
+  { label: 'Kota', c: [75.8648, 25.2138] },
+  { label: 'Sikar', c: [75.1398, 27.6094] },
+  { label: 'Bhilwara', c: [74.6313, 25.3407] },
+  { label: 'Alwar', c: [76.61, 27.553] },
+  { label: 'Bikaner', c: [73.3119, 28.0229] },
+];
 
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
@@ -82,34 +82,10 @@ export default function BookExam() {
       });
       const booking = bookingRes.data;
 
-      const orderRes = await api.post('/payments/order', { bookingId: booking._id });
-      const { orderId, amount, currency, keyId } = orderRes.data;
-
-      const ok = await loadRazorpay();
-      if (!ok) return alert('Failed to load payment gateway');
-
-      const rzp = new window.Razorpay({
-        key: keyId,
-        amount,
-        currency,
-        name: 'ExamRoute',
-        description: 'Bus seat booking',
-        order_id: orderId,
-        prefill: { name: user?.name, email: user?.email },
-        handler: async (response) => {
-          await api.post('/payments/verify', {
-            bookingId: booking._id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-          alert('Payment successful! Seat booked.');
-          navigate('/my-bookings');
-        },
-      });
-      rzp.open();
+      await payBooking(booking._id, user);
+      navigate(`/booking/${booking._id}/confirmed`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Something went wrong');
+      alert(err.response?.data?.message || err.message || 'Something went wrong');
     } finally {
       setBusy(false);
     }
@@ -181,23 +157,34 @@ export default function BookExam() {
       </select>
 
       <label className="block text-sm font-medium">Your home location</label>
-      <div className="flex gap-2 mt-1">
-        <input
-          className="border rounded p-2 w-1/2"
-          placeholder="Latitude"
-          value={coords.lat}
-          onChange={(e) => setCoords({ ...coords, lat: e.target.value })}
-        />
-        <input
-          className="border rounded p-2 w-1/2"
-          placeholder="Longitude"
-          value={coords.lng}
-          onChange={(e) => setCoords({ ...coords, lng: e.target.value })}
-        />
+      <p className="text-xs text-slate-400 mb-1">Tap on the map to drop your home pin.</p>
+      <LocationPicker
+        lat={coords.lat}
+        lng={coords.lng}
+        onChange={(lat, lng) => {
+          setCoords({ lat, lng });
+          setQuote(null);
+        }}
+      />
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <button onClick={useMyLocation} className="text-sm text-brand hover:underline">
+          📍 Use my current location
+        </button>
+        <span className="text-xs text-slate-400">or jump to a city:</span>
+        {PRESETS.map((p) => (
+          <button
+            key={p.label}
+            onClick={() => {
+              setCoords({ lat: p.c[1], lng: p.c[0] });
+              setAddress(p.label);
+              setQuote(null);
+            }}
+            className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded"
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
-      <button onClick={useMyLocation} className="text-sm text-brand mt-2 hover:underline">
-        📍 Use my current location
-      </button>
       <input
         className="border rounded p-2 w-full mt-3"
         placeholder="Address (optional)"

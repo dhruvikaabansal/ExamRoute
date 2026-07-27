@@ -15,6 +15,13 @@ export function haversineKm([lng1, lat1], [lng2, lat2]) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Estimated travel minutes between two [lng, lat] points.
+// Mock mode assumes ~30 km/h in-town average; real mode would use Distance Matrix.
+export function travelMinutes(from, to) {
+  const km = haversineKm(from, to);
+  return Math.max(1, Math.round((km / 30) * 60));
+}
+
 /**
  * Given ordered-ish waypoints (pickup stops) and a destination (center),
  * returns the optimal stop order and per-leg durations.

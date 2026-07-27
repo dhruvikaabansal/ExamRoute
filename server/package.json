@@ -19,6 +19,7 @@
     "google-auth-library": "^9.15.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.4",
+    "nodemailer": "^6.9.16",
     "razorpay": "^2.9.5"
   },
   "devDependencies": {

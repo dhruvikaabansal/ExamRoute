@@ -4,12 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const { loginWithGoogle, loginWithPassword, register } = useAuth();
+  const { loginWithGoogle, loginWithPassword, register, verifyOtp, resendOtp } = useAuth();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'otp'
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [otp, setOtp] = useState('');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [wasRegister, setWasRegister] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
 
   const googleId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -20,18 +24,87 @@ export default function Login() {
     setBusy(true);
     try {
       if (mode === 'register') {
-        await register(form.name, form.email, form.password);
-        // first-time users set up their reusable profile (home location + phone)
-        navigate('/profile?welcome=1');
+        const r = await register(form.name, form.email, form.password);
+        setOtpEmail(r.email);
+        setWasRegister(true);
+        setInfo('We emailed you a 6-digit code. (In dev, check the server console.)');
+        setMode('otp');
       } else {
-        await loginWithPassword(form.email, form.password);
-        navigate('/exams');
+        const r = await loginWithPassword(form.email, form.password);
+        if (r.needsVerification) {
+          setOtpEmail(r.email);
+          setWasRegister(false);
+          setInfo('Please verify your email — we sent a new code.');
+          setMode('otp');
+        } else {
+          navigate('/exams');
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong');
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submitOtp(e) {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      const u = await verifyOtp(otpEmail, otp);
+      // new signups go set up their reusable profile; returning users go to exams
+      navigate(wasRegister || !u?.homeLocation ? '/profile?welcome=1' : '/exams');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid code');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (mode === 'otp') {
+    return (
+      <div className="max-w-md mx-auto mt-16">
+        <div className="bg-white border rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Verify your email</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Enter the 6-digit code sent to <b>{otpEmail}</b>.
+          </p>
+          {info && <p className="text-xs text-blue-600 mt-2">{info}</p>}
+          <form onSubmit={submitOtp} className="mt-4 space-y-3">
+            <input
+              className="w-full border rounded p-2 tracking-widest text-center text-lg"
+              placeholder="______"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              required
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              disabled={busy}
+              className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+            >
+              {busy ? 'Verifying…' : 'Verify & continue'}
+            </button>
+          </form>
+          <div className="flex justify-between mt-3 text-xs">
+            <button
+              onClick={async () => {
+                await resendOtp(otpEmail);
+                setInfo('A new code has been sent.');
+              }}
+              className="text-brand hover:underline"
+            >
+              Resend code
+            </button>
+            <button onClick={() => setMode('login')} className="text-slate-400 hover:underline">
+              Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -106,7 +179,6 @@ export default function Login() {
                 onSuccess={async (cred) => {
                   try {
                     const u = await loginWithGoogle(cred.credential);
-                    // send first-timers (no saved location yet) to profile setup
                     navigate(u?.homeLocation ? '/exams' : '/profile?welcome=1');
                   } catch {
                     setError('Google login failed');

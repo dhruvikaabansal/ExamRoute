@@ -36,10 +36,20 @@ const bookingSchema = new mongoose.Schema(
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
 
+    // pickup stop assigned immediately at booking (geofenced nearest stop),
+    // then refined by the routing engine when the bus is formed
+    assignedStop: { name: String, coordinates: [Number] },
+    stopDistanceKm: { type: Number }, // home -> stop
+    stopEtaMin: { type: Number }, // home -> stop travel minutes
+
     // filled by the routing engine
     bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
-    assignedStop: { name: String, coordinates: [Number] },
     pickupTime: { type: Date },
+
+    // QR e-ticket + boarding
+    ticketToken: { type: String, index: true },
+    boarded: { type: Boolean, default: false },
+    boardedAt: { type: Date },
   },
   { timestamps: true }
 );

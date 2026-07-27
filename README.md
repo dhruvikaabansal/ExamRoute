@@ -8,13 +8,18 @@ Built with the **MERN** stack + **JWT** + **Google OAuth** + **Razorpay** + **Go
 
 ## Features
 
-- **Auth (two ways)** — email + password (bcrypt) **or** "Sign in with Google" (OAuth 2.0). Either way the backend issues its own JWT. New to JWT? See [`docs/JWT.md`](docs/JWT.md) for a plain-English explainer.
+- **Auth (two ways) + email OTP** — email + password (bcrypt) **or** "Sign in with Google" (OAuth 2.0). Email signups verify a 6-digit OTP (real anti-spam deterrent; Google users are auto-verified). Either way the backend issues its own JWT. New to JWT? See [`docs/JWT.md`](docs/JWT.md).
 - **Real exam data** — JEE / NEET / CUET seeded with their actual 2025 patterns: JEE and CUET run across multiple dates with 1–2 shifts each; NEET is a single date + shift. 13 real Rajasthan exam cities.
-- **Profile** — student saves their roll / application number (from the admit card) and home location.
-- **Booking + payment** — pick a specific date & shift, choose extra seats for parents/guardians, see a distance-based **subsidised** fare, then pay via Razorpay (test mode) with server-side signature verification.
-- **Routing engine** — clusters paid students (by seats, companions included), snaps them to the nearest common pickup stop, orders stops via Google Directions optimized-waypoints, and works backward from the **gate-close time** to compute a date-aware departure and per-stop pickup times (overnight-aware for far towns).
-- **Student dashboard** — see your assigned bus, pickup stop, pickup time, departure, and arrival.
-- **Admin** — trigger routing per date+shift and view every bus with its route and seat load.
+- **Profile** — student saves home location + phone (reusable across exams). Roll / application number is asked **per exam** at booking, since each exam issues its own.
+- **Booking + payment** — pick a specific date & shift, choose extra seats for parents/guardians, see a distance-based **subsidised** fare, then pay via Razorpay (test mode) with server-side signature verification. A confirmation screen shows the pickup stop, distance/ETA from home, and a map.
+- **Geofenced pickup stops** — each home is assigned to the nearest stop *within its catchment zone* via a MongoDB `$near` geo-query; zones are drawn on a Leaflet/OpenStreetMap map (no paid key needed).
+- **Routing engine** — clusters paid students (by seats, companions included), orders stops via Directions optimized-waypoints, and works backward from the **gate-close time** for date-aware departure & pickup times (overnight-aware for far towns).
+- **QR e-ticket + boarding** — every paid booking gets a QR ticket. A conductor page scans it, shows the passenger + roll number, prompts an admit-card check, and marks them **boarded**. This is the honest identity step (the app verifies the *ticket*; the human verifies the *person*).
+- **Live bus tracking** — a driver page shares the bus's GPS; students watch it move on a live map (polling).
+- **Email notifications** — OTP and booking-confirmation emails via Nodemailer (logs to console in dev until SMTP is set).
+- **Admin** — trigger routing per date+shift, view every bus with its route on a map, seat load, and a driver link.
+
+> **On verification (important, and viva-ready):** no third party can *digitally* confirm someone is a genuine exam candidate — only NTA can, and there's no public API. The only true digital path is **DigiLocker**, which needs partner-org onboarding a student project can't get. So ExamRoute uses honest, real layers instead: email OTP (deters fakes), real payment (skin in the game), and a **human admit-card check at boarding** via the QR.
 
 ---
 

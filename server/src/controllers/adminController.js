@@ -28,3 +28,25 @@ export async function bookingsForSession(req, res) {
     .sort({ createdAt: -1 });
   res.json(bookings);
 }
+
+// GET /api/admin/bus/:busId — single bus (for the driver page)
+export async function getBus(req, res) {
+  const bus = await Bus.findById(req.params.busId).populate('center');
+  if (!bus) return res.status(404).json({ message: 'Bus not found' });
+  res.json(bus);
+}
+
+// POST /api/admin/bus/:busId/location  { lng, lat }
+// The driver's device posts its live position here every few seconds.
+export async function updateBusLocation(req, res) {
+  const { lng, lat } = req.body;
+  if (typeof lng !== 'number' || typeof lat !== 'number')
+    return res.status(400).json({ message: 'lng and lat (numbers) required' });
+  const bus = await Bus.findByIdAndUpdate(
+    req.params.busId,
+    { currentLocation: { lng, lat }, lastLocationAt: new Date() },
+    { new: true }
+  );
+  if (!bus) return res.status(404).json({ message: 'Bus not found' });
+  res.json({ ok: true, lastLocationAt: bus.lastLocationAt });
+}

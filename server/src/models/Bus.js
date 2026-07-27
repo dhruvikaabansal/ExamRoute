@@ -24,6 +24,10 @@ const busSchema = new mongoose.Schema(
     arrivalTime: { type: Date }, // planned arrival at center
     totalDurationMin: { type: Number },
     passengers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
+
+    // live tracking: the driver's device posts its position here periodically
+    currentLocation: { lng: Number, lat: Number },
+    lastLocationAt: { type: Date },
   },
   { timestamps: true }
 );
