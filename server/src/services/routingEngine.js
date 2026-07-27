@@ -1,24 +1,18 @@
 import Booking from '../models/Booking.js';
 import Bus from '../models/Bus.js';
 import Stop from '../models/Stop.js';
-import Exam from '../models/Exam.js';
+import ExamSession from '../models/ExamSession.js';
 import Center from '../models/Center.js';
 import { optimizeRoute, haversineKm } from './mapsService.js';
 
-/**
- * Simple k-means clustering on [lng, lat] points.
- * k = number of buses needed. Runs a handful of iterations — plenty for a
- * few dozen students and easy to explain in a viva.
- */
+// Simple k-means on [lng, lat]. k = number of buses. A few iterations is plenty
+// for a few dozen students and easy to explain in a viva.
 function kMeans(points, k, iterations = 10) {
   if (points.length <= k) return points.map((_, i) => i % k);
-
-  // init centroids = first k points (deterministic, good enough)
   let centroids = points.slice(0, k).map((p) => [...p]);
-  let assignments = new Array(points.length).fill(0);
+  const assignments = new Array(points.length).fill(0);
 
   for (let iter = 0; iter < iterations; iter++) {
-    // assign
     for (let i = 0; i < points.length; i++) {
       let best = 0;
       let bestDist = Infinity;
@@ -31,7 +25,6 @@ function kMeans(points, k, iterations = 10) {
       }
       assignments[i] = best;
     }
-    // update
     const sums = Array.from({ length: k }, () => [0, 0, 0]);
     for (let i = 0; i < points.length; i++) {
       const c = assignments[i];
@@ -40,15 +33,13 @@ function kMeans(points, k, iterations = 10) {
       sums[c][2] += 1;
     }
     for (let c = 0; c < k; c++) {
-      if (sums[c][2] > 0) {
+      if (sums[c][2] > 0)
         centroids[c] = [sums[c][0] / sums[c][2], sums[c][1] / sums[c][2]];
-      }
     }
   }
   return assignments;
 }
 
-// Snap a home point to the nearest known pickup stop
 function nearestStop(homeCoords, stops) {
   let best = stops[0];
   let bestDist = Infinity;
@@ -62,43 +53,45 @@ function nearestStop(homeCoords, stops) {
   return best;
 }
 
+const seatsOf = (bookings) => bookings.reduce((sum, b) => sum + (b.seats || 1), 0);
+
 /**
- * Main entry point. Runs routing for one exam:
- *   1. cluster paid students into buses (respecting capacity)
- *   2. snap each student to nearest known stop
- *   3. order stops via Directions optimize + compute timing
- *   4. persist Bus docs and update each Booking with bus/stop/pickupTime
+ * Runs routing for ONE session (a specific date + shift):
+ *   1. cluster paid students per center into buses (respecting SEAT capacity)
+ *   2. snap each student to nearest known common stop
+ *   3. order stops via Directions optimize + compute leg durations
+ *   4. work backward from the exam GATE-CLOSE time (minus buffer) to get the
+ *      departure time and each stop's pickup time (date-aware -> may be overnight)
  */
-export async function runRoutingForExam(examId) {
-  const exam = await Exam.findById(examId);
-  if (!exam) throw new Error('Exam not found');
+export async function runRoutingForSession(sessionId) {
+  const session = await ExamSession.findById(sessionId);
+  if (!session) throw new Error('Session not found');
 
   const capacity = Number(process.env.BUS_CAPACITY || 40);
   const bufferMin = Number(process.env.SAFETY_BUFFER_MIN || 60);
 
-  // clear any previous run
-  await Bus.deleteMany({ exam: examId });
+  await Bus.deleteMany({ session: sessionId });
 
   const centers = await Center.find({});
   const results = [];
 
-  // route per center independently
   for (const center of centers) {
     const bookings = await Booking.find({
-      exam: examId,
+      session: sessionId,
       center: center._id,
       status: { $in: ['paid', 'assigned'] },
     });
     if (bookings.length === 0) continue;
 
-    const stops = await Stop.find({ state: exam.state });
+    const stops = await Stop.find({});
     if (stops.length === 0) continue;
 
     const points = bookings.map((b) => b.homeLocation.coordinates);
-    const k = Math.ceil(bookings.length / capacity);
+    // k must be enough to fit total SEATS (companions count), not just headcount
+    const totalSeats = seatsOf(bookings);
+    const k = Math.max(1, Math.ceil(totalSeats / capacity));
     const assignments = kMeans(points, k);
 
-    // group bookings by cluster
     const clusters = Array.from({ length: k }, () => []);
     bookings.forEach((b, i) => clusters[assignments[i]].push(b));
 
@@ -106,7 +99,7 @@ export async function runRoutingForExam(examId) {
     for (const clusterBookings of clusters) {
       if (clusterBookings.length === 0) continue;
 
-      // collect unique stops for this cluster
+      // unique common stops for this cluster
       const stopMap = new Map();
       for (const b of clusterBookings) {
         const s = nearestStop(b.homeLocation.coordinates, stops);
@@ -123,11 +116,12 @@ export async function runRoutingForExam(examId) {
         center.location.coordinates
       );
 
-      // departure = reportingTime - totalTravel - buffer
-      const reporting = new Date(exam.reportingTime).getTime();
-      const departureTime = new Date(reporting - (totalMin + bufferMin) * 60000);
+      // arrive by gateClose - buffer; departure = arrival - totalTravel
+      const gateClose = new Date(session.gateClose).getTime();
+      const arrivalTime = new Date(gateClose - bufferMin * 60000);
+      const departureTime = new Date(arrivalTime.getTime() - totalMin * 60000);
 
-      // per-stop pickup times (cumulative from departure)
+      // per-stop pickup times, cumulative from departure
       let cumulative = 0;
       const routeWithTimes = order.map((stop, i) => {
         const pickup = new Date(departureTime.getTime() + cumulative * 60000);
@@ -136,17 +130,19 @@ export async function runRoutingForExam(examId) {
       });
 
       const bus = await Bus.create({
-        exam: examId,
+        exam: session.exam,
+        session: sessionId,
         center: center._id,
         label: `${center.city} - Bus ${busIndex}`,
         capacity,
+        seatsUsed: seatsOf(clusterBookings),
         route: routeWithTimes,
         departureTime,
+        arrivalTime,
         totalDurationMin: totalMin,
         passengers: clusterBookings.map((b) => b._id),
       });
 
-      // update each booking with its stop + pickup time
       for (const b of clusterBookings) {
         const stopName = b._assignedStop.name;
         const match = routeWithTimes.find((r) => r.name === stopName);

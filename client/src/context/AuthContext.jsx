@@ -20,11 +20,25 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
+  function saveAuth(data) {
+    localStorage.setItem('examroute_token', data.token);
+    setUser(data.user);
+    return data.user;
+  }
+
   async function loginWithGoogle(credential) {
     const res = await api.post('/auth/google', { credential });
-    localStorage.setItem('examroute_token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
+    return saveAuth(res.data);
+  }
+
+  async function loginWithPassword(email, password) {
+    const res = await api.post('/auth/login', { email, password });
+    return saveAuth(res.data);
+  }
+
+  async function register(name, email, password) {
+    const res = await api.post('/auth/register', { name, email, password });
+    return saveAuth(res.data);
   }
 
   function logout() {
@@ -32,12 +46,10 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  function refreshUser(u) {
-    setUser(u);
-  }
-
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, loginWithGoogle, loginWithPassword, register, logout, setUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

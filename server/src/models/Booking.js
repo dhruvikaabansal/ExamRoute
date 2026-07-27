@@ -4,6 +4,7 @@ const bookingSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     exam: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam', required: true },
+    session: { type: mongoose.Schema.Types.ObjectId, ref: 'ExamSession', required: true },
     center: { type: mongoose.Schema.Types.ObjectId, ref: 'Center', required: true },
 
     // where the student is travelling from
@@ -13,30 +14,35 @@ const bookingSchema = new mongoose.Schema(
       address: { type: String },
     },
 
-    fare: { type: Number, required: true },
+    // seats: 1 (student) + companions (parents/guardians)
+    companions: { type: Number, default: 0, min: 0, max: 3 },
+    seats: { type: Number, default: 1 }, // = 1 + companions
+
+    // fare breakdown
+    distanceKm: { type: Number },
+    baseFare: { type: Number }, // before subsidy, for all seats
+    subsidyPercent: { type: Number, default: 0 },
+    fare: { type: Number, required: true }, // final payable
+
     status: {
       type: String,
       enum: ['pending', 'paid', 'assigned', 'cancelled'],
       default: 'pending',
     },
 
-    // payment
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
 
-    // filled in after the routing engine runs
+    // filled by the routing engine
     bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
-    assignedStop: {
-      name: String,
-      coordinates: [Number], // [lng, lat]
-    },
+    assignedStop: { name: String, coordinates: [Number] },
     pickupTime: { type: Date },
   },
   { timestamps: true }
 );
 
 bookingSchema.index({ homeLocation: '2dsphere' });
-// A student can only book once per exam
-bookingSchema.index({ user: 1, exam: 1 }, { unique: true });
+// one booking per student per session
+bookingSchema.index({ user: 1, session: 1 }, { unique: true });
 
 export default mongoose.model('Booking', bookingSchema);

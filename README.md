@@ -8,12 +8,13 @@ Built with the **MERN** stack + **JWT** + **Google OAuth** + **Razorpay** + **Go
 
 ## Features
 
-- **Auth** — "Sign in with Google" (OAuth 2.0) → backend issues its own JWT.
-- **Exam & center catalog** — seeded reference data for one state.
-- **Booking + payment** — reserve a seat, pay via Razorpay (test mode), server-side signature verification.
-- **Routing engine** — clusters paid students, builds pickup stops, uses Google Directions optimized-waypoints to order stops, and computes departure/pickup times by working backward from the exam reporting time.
-- **Student dashboard** — see your assigned bus, pickup stop, route, and departure time.
-- **Admin** — manage exams/centers and trigger routing for an exam.
+- **Auth (two ways)** — email + password (bcrypt) **or** "Sign in with Google" (OAuth 2.0). Either way the backend issues its own JWT. New to JWT? See [`docs/JWT.md`](docs/JWT.md) for a plain-English explainer.
+- **Real exam data** — JEE / NEET / CUET seeded with their actual 2025 patterns: JEE and CUET run across multiple dates with 1–2 shifts each; NEET is a single date + shift. 13 real Rajasthan exam cities.
+- **Profile** — student saves their roll / application number (from the admit card) and home location.
+- **Booking + payment** — pick a specific date & shift, choose extra seats for parents/guardians, see a distance-based **subsidised** fare, then pay via Razorpay (test mode) with server-side signature verification.
+- **Routing engine** — clusters paid students (by seats, companions included), snaps them to the nearest common pickup stop, orders stops via Google Directions optimized-waypoints, and works backward from the **gate-close time** to compute a date-aware departure and per-stop pickup times (overnight-aware for far towns).
+- **Student dashboard** — see your assigned bus, pickup stop, pickup time, departure, and arrival.
+- **Admin** — trigger routing per date+shift and view every bus with its route and seat load.
 
 ---
 
@@ -76,9 +77,10 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-### 4. Seed reference data
+### 4. Seed data
 ```bash
-npm run seed
+npm run seed        # real Rajasthan exams, sessions, 13 centers, pickup stops
+npm run seed:demo   # fake PAID students (with parents) so routing has data to run
 ```
 
 ### 5. Run (both client + server)
@@ -88,22 +90,27 @@ npm run dev
 - API → http://localhost:5000
 - App → http://localhost:5173
 
+Sign up with email+password (or Google). The email set as `ADMIN_EMAIL` becomes an admin automatically, so you can open the **Admin** page, pick the JEE date+shift the demo seeded, and click **Run routing engine**.
+
 ---
 
 ## Environment variables
 
-**server/.env**
+**server/.env** (see `server/.env.example` for the full list with comments)
 ```
 PORT=5000
 MONGO_URI=your_atlas_connection_string
 JWT_SECRET=any_long_random_string
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_CLIENT_ID=your_google_oauth_client_id      # only needed for Google login
+ADMIN_EMAIL=you@example.com                        # this email auto-becomes admin
 RAZORPAY_KEY_ID=rzp_test_xxx
 RAZORPAY_KEY_SECRET=your_razorpay_secret
-GOOGLE_MAPS_API_KEY=your_maps_key
+GOOGLE_MAPS_API_KEY=                               # blank = mock mode (works offline)
+MAX_SUBSIDY_PCT=50                                 # subsidy cap for farthest students
+SUBSIDY_PER_25KM=5                                 # +5% subsidy per 25 km
 CLIENT_URL=http://localhost:5173
 ```
+> Email+password login needs **no** Google or Razorpay keys — you can run and explore the whole app with just `MONGO_URI` + `JWT_SECRET`. Add Google/Razorpay/Maps keys later to enable those specific features.
 
 **client/.env**
 ```

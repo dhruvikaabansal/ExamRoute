@@ -16,6 +16,7 @@ export default function Navbar() {
             <>
               <Link to="/exams" className="hover:text-brand">Exams</Link>
               <Link to="/my-bookings" className="hover:text-brand">My Bookings</Link>
+              <Link to="/profile" className="hover:text-brand">Profile</Link>
               {user.role === 'admin' && (
                 <Link to="/admin" className="hover:text-brand">Admin</Link>
               )}

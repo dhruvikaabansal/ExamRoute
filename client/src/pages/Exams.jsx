@@ -25,14 +25,14 @@ export default function Exams() {
               <span className="text-xs font-semibold bg-blue-100 text-brand px-2 py-1 rounded">
                 {e.code}
               </span>
-              <span className="text-xs text-slate-500">
-                {new Date(e.date).toLocaleDateString()}
-              </span>
+              {e.multiShift ? (
+                <span className="text-xs text-slate-500">multiple dates &amp; shifts</span>
+              ) : (
+                <span className="text-xs text-slate-500">single shift</span>
+              )}
             </div>
             <h3 className="mt-2 font-medium">{e.name}</h3>
-            <p className="text-sm text-slate-500">
-              Report by {new Date(e.reportingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
+            <p className="text-sm text-slate-500">{e.description}</p>
             <Link
               to={`/book/${e._id}`}
               className="mt-3 inline-block bg-brand text-white text-sm px-4 py-2 rounded hover:bg-brand-dark"

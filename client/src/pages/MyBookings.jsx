@@ -8,6 +8,15 @@ const statusColor = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
+const fmtDateTime = (d) =>
+  new Date(d).toLocaleString([], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
 export default function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,39 +44,29 @@ export default function MyBookings() {
               </span>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Center: {b.center?.name}, {b.center?.city} · Fare ₹{b.fare}
+              {b.session && `${b.session.shiftLabel} · `}
+              {b.center?.name}, {b.center?.city}
+            </p>
+            <p className="text-sm text-slate-500">
+              {b.seats} seat{b.seats > 1 ? 's' : ''} · {b.distanceKm} km · paid ₹{b.fare}
+              {b.subsidyPercent > 0 && (
+                <span className="text-green-700"> ({b.subsidyPercent}% subsidy)</span>
+              )}
             </p>
 
             {b.status === 'assigned' && b.bus && (
               <div className="mt-3 bg-green-50 border border-green-200 rounded p-3 text-sm">
                 <p>🚌 <b>{b.bus.label}</b></p>
                 <p>Pickup stop: <b>{b.assignedStop?.name}</b></p>
-                <p>
-                  Pickup time:{' '}
-                  <b>
-                    {b.pickupTime &&
-                      new Date(b.pickupTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                  </b>
-                </p>
-                <p>
-                  Bus departs:{' '}
-                  <b>
-                    {b.bus.departureTime &&
-                      new Date(b.bus.departureTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                  </b>
-                </p>
+                <p>Be at your stop by: <b>{b.pickupTime && fmtDateTime(b.pickupTime)}</b></p>
+                <p>Bus departs: <b>{b.bus.departureTime && fmtDateTime(b.bus.departureTime)}</b></p>
+                <p>Reaches center by: <b>{b.bus.arrivalTime && fmtDateTime(b.bus.arrivalTime)}</b></p>
               </div>
             )}
 
             {b.status === 'paid' && (
               <p className="mt-2 text-sm text-slate-500">
-                Paid ✓ — your bus & pickup time will appear here once routing is done.
+                Paid ✓ — your bus &amp; pickup time will appear here once routing is done.
               </p>
             )}
           </div>

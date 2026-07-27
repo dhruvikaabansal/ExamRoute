@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Exams from './pages/Exams';
 import BookExam from './pages/BookExam';
 import MyBookings from './pages/MyBookings';
+import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 
 function Protected({ children }) {
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/exams" element={<Protected><Exams /></Protected>} />
           <Route path="/book/:examId" element={<Protected><BookExam /></Protected>} />
           <Route path="/my-bookings" element={<Protected><MyBookings /></Protected>} />
+          <Route path="/profile" element={<Protected><Profile /></Protected>} />
           <Route path="/admin" element={<Protected><Admin /></Protected>} />
         </Routes>
       </main>
