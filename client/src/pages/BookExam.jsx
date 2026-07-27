@@ -29,6 +29,7 @@ export default function BookExam() {
   const [centers, setCenters] = useState([]);
   const [sessionId, setSessionId] = useState('');
   const [centerId, setCenterId] = useState('');
+  const [rollNumber, setRollNumber] = useState('');
   const [companions, setCompanions] = useState(0);
   const [coords, setCoords] = useState({
     lat: user?.homeLocation?.coordinates?.[1] || '',
@@ -74,6 +75,7 @@ export default function BookExam() {
         examId,
         sessionId,
         centerId,
+        rollNumber,
         coordinates: [Number(coords.lng), Number(coords.lat)],
         address,
         companions: Number(companions),
@@ -152,6 +154,16 @@ export default function BookExam() {
           </option>
         ))}
       </select>
+
+      <label className="block text-sm font-medium">
+        Your roll / application number for this exam
+      </label>
+      <input
+        className="w-full border rounded p-2 mt-1 mb-4"
+        placeholder="e.g. 2601000123 (from your admit card)"
+        value={rollNumber}
+        onChange={(e) => setRollNumber(e.target.value)}
+      />
 
       <label className="block text-sm font-medium">Seats for parents / guardians</label>
       <select

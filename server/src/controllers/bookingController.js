@@ -14,9 +14,10 @@ export async function quote(req, res) {
   res.json({ ...result, seats });
 }
 
-// POST /api/bookings  { examId, sessionId, centerId, coordinates, address, companions }
+// POST /api/bookings  { examId, sessionId, centerId, coordinates, address, companions, rollNumber }
 export async function createBooking(req, res) {
-  const { examId, sessionId, centerId, coordinates, address, companions = 0 } = req.body;
+  const { examId, sessionId, centerId, coordinates, address, companions = 0, rollNumber } =
+    req.body;
 
   const exam = await Exam.findById(examId);
   const session = await ExamSession.findById(sessionId);
@@ -40,6 +41,7 @@ export async function createBooking(req, res) {
     exam: examId,
     session: sessionId,
     center: centerId,
+    rollNumber,
     homeLocation: { type: 'Point', coordinates, address },
     companions: seats - 1,
     seats,

@@ -7,6 +7,9 @@ const bookingSchema = new mongoose.Schema(
     session: { type: mongoose.Schema.Types.ObjectId, ref: 'ExamSession', required: true },
     center: { type: mongoose.Schema.Types.ObjectId, ref: 'Center', required: true },
 
+    // roll / application number is per-exam, so it lives on the booking
+    rollNumber: { type: String },
+
     // where the student is travelling from
     homeLocation: {
       type: { type: String, enum: ['Point'], default: 'Point' },

@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function Profile() {
   const { user, setUser } = useAuth();
-  const [rollNumber, setRollNumber] = useState(user?.rollNumber || '');
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const welcome = params.get('welcome') === '1';
   const [phone, setPhone] = useState(user?.phone || '');
   const [coords, setCoords] = useState({
     lat: user?.homeLocation?.coordinates?.[1] || '',
@@ -26,7 +29,7 @@ export default function Profile() {
     setBusy(true);
     setMsg('');
     try {
-      const body = { rollNumber, phone };
+      const body = { phone };
       if (coords.lat && coords.lng) {
         body.coordinates = [Number(coords.lng), Number(coords.lat)];
         body.address = address;
@@ -34,6 +37,7 @@ export default function Profile() {
       const res = await api.patch('/auth/profile', body);
       setUser(res.data.user);
       setMsg('Saved ✓');
+      if (welcome) navigate('/exams'); // first-time setup done -> go book
     } catch {
       setMsg('Could not save');
     } finally {
@@ -43,25 +47,22 @@ export default function Profile() {
 
   return (
     <div className="max-w-lg">
+      {welcome && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded p-3 text-sm text-brand-dark">
+          👋 Welcome to ExamRoute! Set your home location so we can pool you onto the
+          right bus. You'll only do this once.
+        </div>
+      )}
       <h2 className="text-xl font-semibold mb-1">My Profile</h2>
       <p className="text-sm text-slate-500 mb-4">
-        Add your exam roll / application number (from your admit card) and your home
-        location so we can pool you onto the right bus.
+        Save your home location and phone — we reuse these across every exam you book.
+        (Your exam roll number is asked per exam when you book, since each exam has its own.)
       </p>
 
       <form onSubmit={save} className="space-y-3 bg-white border rounded-lg p-5">
         <div>
           <label className="block text-sm font-medium">Name</label>
           <input className="w-full border rounded p-2 mt-1 bg-slate-50" value={user?.name || ''} disabled />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Exam roll / application number</label>
-          <input
-            className="w-full border rounded p-2 mt-1"
-            placeholder="e.g. 2601000123"
-            value={rollNumber}
-            onChange={(e) => setRollNumber(e.target.value)}
-          />
         </div>
         <div>
           <label className="block text-sm font-medium">Phone</label>

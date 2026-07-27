@@ -21,10 +21,12 @@ export default function Login() {
     try {
       if (mode === 'register') {
         await register(form.name, form.email, form.password);
+        // first-time users set up their reusable profile (home location + phone)
+        navigate('/profile?welcome=1');
       } else {
         await loginWithPassword(form.email, form.password);
+        navigate('/exams');
       }
-      navigate('/exams');
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong');
     } finally {
@@ -103,8 +105,9 @@ export default function Login() {
               <GoogleLogin
                 onSuccess={async (cred) => {
                   try {
-                    await loginWithGoogle(cred.credential);
-                    navigate('/exams');
+                    const u = await loginWithGoogle(cred.credential);
+                    // send first-timers (no saved location yet) to profile setup
+                    navigate(u?.homeLocation ? '/exams' : '/profile?welcome=1');
                   } catch {
                     setError('Google login failed');
                   }

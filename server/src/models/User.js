@@ -20,8 +20,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String }, // only for local (email+password) accounts
 
     picture: { type: String },
-    phone: { type: String },
-    rollNumber: { type: String }, // exam roll / application number (from admit card)
+    phone: { type: String }, // reusable across exams
     role: { type: String, enum: ['student', 'admin'], default: 'student' },
 
     homeLocation: { type: pointSchema, default: undefined },

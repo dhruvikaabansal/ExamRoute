@@ -30,6 +30,14 @@ const students = [
 async function demo() {
   await connectDB();
 
+  // drop any stale unique googleId index left over from the v1 schema
+  try {
+    await User.collection.dropIndex('googleId_1');
+  } catch {
+    /* index already gone — fine */
+  }
+  await User.syncIndexes();
+
   const exam = await Exam.findOne({ code: 'JEE' });
   if (!exam) {
     console.error('No JEE exam found. Run `npm run seed` first.');
@@ -60,7 +68,6 @@ async function demo() {
       name,
       email: demoEmails[i],
       authProvider: 'local',
-      rollNumber: `2601${String(1000 + i)}`,
       homeLocation: { type: 'Point', coordinates: coords, address: homeCity },
     });
 
@@ -76,6 +83,7 @@ async function demo() {
       exam: exam._id,
       session: session._id,
       center: center._id,
+      rollNumber: `2601${String(1000 + i)}`,
       homeLocation: { type: 'Point', coordinates: coords, address: homeCity },
       companions,
       seats,

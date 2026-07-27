@@ -46,6 +46,7 @@ export default function MyBookings() {
             <p className="text-sm text-slate-500 mt-1">
               {b.session && `${b.session.shiftLabel} · `}
               {b.center?.name}, {b.center?.city}
+              {b.rollNumber && ` · Roll ${b.rollNumber}`}
             </p>
             <p className="text-sm text-slate-500">
               {b.seats} seat{b.seats > 1 ? 's' : ''} · {b.distanceKm} km · paid ₹{b.fare}

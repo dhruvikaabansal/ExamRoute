@@ -109,12 +109,11 @@ export async function getMe(req, res) {
   res.json({ user: req.user });
 }
 
-// PATCH /api/auth/profile  { coordinates:[lng,lat], address, phone, rollNumber }
+// PATCH /api/auth/profile  { coordinates:[lng,lat], address, phone }
 export async function updateProfile(req, res) {
-  const { coordinates, address, phone, rollNumber } = req.body;
+  const { coordinates, address, phone } = req.body;
   if (coordinates) req.user.homeLocation = { type: 'Point', coordinates, address };
   if (phone !== undefined) req.user.phone = phone;
-  if (rollNumber !== undefined) req.user.rollNumber = rollNumber;
   await req.user.save();
   res.json({ user: req.user });
 }

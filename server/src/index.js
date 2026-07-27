@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
 import routes from './routes/index.js';
 
@@ -20,6 +21,13 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Reconcile DB indexes with the current schemas (drops stale ones like the
+  // old unique googleId index, then builds the current sparse index).
+  try {
+    await Promise.all(Object.values(mongoose.models).map((m) => m.syncIndexes()));
+  } catch (err) {
+    console.warn('Index sync warning:', err.message);
+  }
   app.listen(PORT, () => console.log(`🚌 ExamRoute API running on port ${PORT}`));
 });
