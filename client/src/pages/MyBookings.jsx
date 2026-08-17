@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { payBooking } from '../lib/pay';
+import { fmtDateTime, fmtRelative } from '../lib/format';
 
 const statusColor = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -12,15 +13,6 @@ const statusColor = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-const fmtDateTime = (d) =>
-  new Date(d).toLocaleString([], {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
 export default function MyBookings() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +20,7 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [showQR, setShowQR] = useState(null);
   const [paying, setPaying] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
 
   function load() {
     return api.get('/bookings/mine').then((res) => {
@@ -49,6 +42,42 @@ export default function MyBookings() {
       alert(e.response?.data?.message || e.message || 'Payment failed');
     } finally {
       setPaying(null);
+    }
+  }
+
+  /**
+   * Ask the server what the refund would be, show it, and only then cancel.
+   *
+   * The refund tiers live on the server, so the quote is produced by the same
+   * function the cancel endpoint uses — the number in this dialog is the
+   * number the student actually gets. Telling them the amount only after an
+   * irreversible action would be a dark pattern.
+   */
+  async function cancel(bookingId) {
+    setCancelling(bookingId);
+    try {
+      let prompt = 'Cancel this seat? Your place on the bus will be released.';
+      try {
+        const { data: q } = await api.get(`/bookings/${bookingId}/refund-quote`);
+        if (!q.unpaid) {
+          prompt =
+            `${q.reason}.\n\n` +
+            `You paid ₹${q.amountPaid} · refund ₹${q.amount} (${q.percent}%).\n\n` +
+            'Cancel this seat? This cannot be undone.';
+        }
+      } catch {
+        // A quote is a courtesy, not a precondition. If it fails we still let
+        // the student cancel, with the generic warning.
+      }
+      if (!window.confirm(prompt)) return;
+
+      const res = await api.post(`/bookings/${bookingId}/cancel`);
+      if (res.data.refundNote) alert(res.data.refundNote);
+      await load();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Could not cancel');
+    } finally {
+      setCancelling(null);
     }
   }
 
@@ -102,10 +131,23 @@ export default function MyBookings() {
 
               {b.status === 'assigned' && b.bus && (
                 <div className="mt-3 bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <p>🚌 <b>{b.bus.label}</b></p>
-                  <p>Be at your stop by: <b>{b.pickupTime && fmtDateTime(b.pickupTime)}</b></p>
-                  <p>Bus departs: <b>{b.bus.departureTime && fmtDateTime(b.bus.departureTime)}</b></p>
-                  <p>Reaches center by: <b>{b.bus.arrivalTime && fmtDateTime(b.bus.arrivalTime)}</b></p>
+                  <p>
+                    🚌 <b>{b.bus.label}</b>
+                    {b.bus.isOvernight && (
+                      <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                        overnight — leaves the night before
+                      </span>
+                    )}
+                  </p>
+                  <p>
+                    Be at your stop by: <b>{fmtDateTime(b.pickupTime)}</b>
+                    {b.pickupTime && (
+                      <span className="text-slate-500"> ({fmtRelative(b.pickupTime)})</span>
+                    )}
+                  </p>
+                  <p>Bus departs: <b>{fmtDateTime(b.bus.departureTime)}</b></p>
+                  <p>Reaches centre by: <b>{fmtDateTime(b.bus.arrivalTime)}</b></p>
+                  <p className="text-xs text-slate-500">All times shown in IST.</p>
                   <Link
                     to={`/track/${b._id}`}
                     className="inline-block mt-2 text-brand hover:underline"
@@ -119,6 +161,31 @@ export default function MyBookings() {
                 <p className="mt-2 text-sm text-slate-500">
                   Paid ✓ — your bus &amp; pickup time appear here once routing is done.
                 </p>
+              )}
+
+              {b.status === 'cancelled' && b.refundStatus && b.refundStatus !== 'none' && (
+                <p
+                  className={`mt-2 text-sm ${
+                    b.refundStatus === 'failed' ? 'text-red-600' : 'text-slate-600'
+                  }`}
+                >
+                  {b.refundStatus === 'processed' &&
+                    `💸 ₹${b.refundAmount} refunded to your original payment method.`}
+                  {b.refundStatus === 'pending' &&
+                    `💸 Refund of ₹${b.refundAmount} is being processed.`}
+                  {b.refundStatus === 'failed' &&
+                    `⚠️ ₹${b.refundAmount} is owed to you — the automatic refund failed and our team is settling it manually.`}
+                </p>
+              )}
+
+              {b.status !== 'cancelled' && !b.boarded && (
+                <button
+                  onClick={() => cancel(b._id)}
+                  disabled={cancelling === b._id}
+                  className="mt-2 ml-0 text-xs text-slate-500 hover:text-red-600 hover:underline disabled:opacity-50"
+                >
+                  {cancelling === b._id ? 'Cancelling…' : 'Cancel this booking'}
+                </button>
               )}
 
               {isPaid && b.ticketToken && (

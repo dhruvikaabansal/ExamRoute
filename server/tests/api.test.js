@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { createApp } from '../src/app.js';
 import Booking from '../src/models/Booking.js';
 import Bus from '../src/models/Bus.js';
+import ExamSession from '../src/models/ExamSession.js';
 import { runRoutingForSession } from '../src/services/routingEngine.js';
 import {
   makeUser,
@@ -287,6 +288,136 @@ describe.skipIf(!dbReady)('booking rules', () => {
 
     const { buses } = await runRoutingForSession(session._id);
     expect(buses).toEqual([]);
+  });
+});
+
+describe.skipIf(!dbReady)('cancellation and refunds', () => {
+  async function setup(examOpts = {}) {
+    await makeStops();
+    const center = await makeCenter();
+    const { exam, session } = await makeExamWithSession(examOpts);
+    const user = await makeUser();
+    return { center, exam, session, user };
+  }
+
+  const paidSeat = async (opts = {}) => {
+    const ctx = await setup(opts.exam);
+    const booking = await makePaidBooking({
+      ...ctx, coordinates: SIKAR, status: opts.status || 'paid',
+    });
+    return { ...ctx, booking };
+  };
+
+  it('quotes the refund before the student commits to cancelling', async () => {
+    // 21 days out, so comfortably inside the full-refund window.
+    const { booking, user } = await paidSeat();
+    const res = await asUser(
+      request(app).get(`/api/bookings/${booking._id}/refund-quote`),
+      user
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.percent).toBe(100);
+    expect(res.body.amount).toBe(booking.fare);
+    expect(res.body.reason).toBeTruthy();
+  });
+
+  it('quotes and refunds the same amount — the student is not shown one number and paid another', async () => {
+    const { booking, user } = await paidSeat();
+    const quote = await asUser(
+      request(app).get(`/api/bookings/${booking._id}/refund-quote`),
+      user
+    );
+    const cancel = await asUser(
+      request(app).post(`/api/bookings/${booking._id}/cancel`),
+      user
+    );
+
+    expect(cancel.status).toBe(200);
+    expect(cancel.body.refund.amount).toBe(quote.body.amount);
+  });
+
+  it('marks the refund processed and records the amount', async () => {
+    const { booking, user } = await paidSeat();
+    await asUser(request(app).post(`/api/bookings/${booking._id}/cancel`), user);
+
+    const saved = await Booking.findById(booking._id);
+    expect(saved.status).toBe('cancelled');
+    expect(saved.refundStatus).toBe('processed');
+    expect(saved.refundAmount).toBe(booking.fare);
+    expect(saved.refundedAt).toBeTruthy();
+  });
+
+  it('refunds nothing for a seat that was never paid for', async () => {
+    const { booking, user } = await paidSeat({ status: 'pending' });
+    const res = await asUser(
+      request(app).post(`/api/bookings/${booking._id}/cancel`),
+      user
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.refund.amount).toBe(0);
+    expect((await Booking.findById(booking._id)).refundStatus).toBe('none');
+  });
+
+  it('refunds nothing when the exam is imminent — the seat cannot be resold', async () => {
+    const { booking, session, user } = await paidSeat();
+
+    // Pull the gate close to two hours from now. Setting it explicitly rather
+    // than seeding the sitting "one day away" keeps the test independent of
+    // what time of day it happens to run — otherwise it lands either side of
+    // the 24-hour boundary depending on the clock.
+    await ExamSession.findByIdAndUpdate(session._id, {
+      gateClose: new Date(Date.now() + 2 * 60 * 60 * 1000),
+    });
+
+    const res = await asUser(
+      request(app).post(`/api/bookings/${booking._id}/cancel`),
+      user
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.refund.percent).toBe(0);
+    expect(res.body.refund.amount).toBe(0);
+    // The seat is still released, even though no money goes back.
+    expect((await Booking.findById(booking._id)).status).toBe('cancelled');
+  });
+
+  it('refuses to cancel twice, so a refund cannot be issued twice', async () => {
+    const { booking, user } = await paidSeat();
+    expect(
+      (await asUser(request(app).post(`/api/bookings/${booking._id}/cancel`), user)).status
+    ).toBe(200);
+
+    const second = await asUser(
+      request(app).post(`/api/bookings/${booking._id}/cancel`),
+      user
+    );
+    expect(second.status).toBe(400);
+    expect(second.body.message).toMatch(/already cancelled/i);
+  });
+
+  it('does not let one student cancel another student’s booking', async () => {
+    const { booking } = await paidSeat();
+    const stranger = await makeUser();
+
+    const res = await asUser(
+      request(app).post(`/api/bookings/${booking._id}/cancel`),
+      stranger
+    );
+    expect(res.status).toBe(404);
+    expect((await Booking.findById(booking._id)).status).toBe('paid');
+  });
+
+  it('refuses to cancel a booking that has already boarded', async () => {
+    const { booking, user } = await paidSeat();
+    await Booking.findByIdAndUpdate(booking._id, { boarded: true });
+
+    const res = await asUser(
+      request(app).post(`/api/bookings/${booking._id}/cancel`),
+      user
+    );
+    expect(res.status).toBe(400);
   });
 });
 

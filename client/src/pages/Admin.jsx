@@ -1,17 +1,36 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../api/client';
 import MapView from '../components/MapView';
+import { fmtDate, fmtDateTime, fmtShort } from '../lib/format';
 
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-const fmtDateTime = (d) =>
-  new Date(d).toLocaleString([], {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+/** Copy-to-clipboard with a graceful fallback for non-secure contexts. */
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    window.prompt('Copy this link:', text);
+    return false;
+  }
+}
+
+function SeatBar({ used, capacity }) {
+  const pct = Math.min(100, Math.round((used / capacity) * 100));
+  const over = used > capacity;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-28 h-2 bg-slate-200 rounded overflow-hidden">
+        <div
+          className={`h-full ${over ? 'bg-red-500' : pct > 85 ? 'bg-amber-500' : 'bg-green-500'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className={`text-sm ${over ? 'text-red-600 font-semibold' : 'text-slate-500'}`}>
+        {used}/{capacity} seats
+      </span>
+    </div>
+  );
+}
 
 export default function Admin() {
   const [exams, setExams] = useState([]);
@@ -19,8 +38,11 @@ export default function Admin() {
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState('');
   const [buses, setBuses] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [msg, setMsg] = useState('');
+  const [warnings, setWarnings] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState('');
 
   useEffect(() => {
     api.get('/exams').then((res) => {
@@ -37,30 +59,54 @@ export default function Admin() {
     });
   }, [examId]);
 
-  async function loadBuses(id) {
-    const res = await api.get(`/admin/buses/${id}`);
-    setBuses(res.data);
+  async function loadSession(id) {
+    const [busRes, bookingRes] = await Promise.all([
+      api.get(`/admin/buses/${id}`),
+      api.get(`/admin/bookings/${id}`),
+    ]);
+    setBuses(busRes.data);
+    setSummary(bookingRes.data.summary);
   }
 
   useEffect(() => {
-    setMsg(''); // clear stale "0 buses" message when switching session
-    if (sessionId) loadBuses(sessionId).catch(() => setBuses([]));
-    else setBuses([]);
+    setMsg('');
+    setWarnings([]);
+    if (sessionId) {
+      loadSession(sessionId).catch(() => {
+        setBuses([]);
+        setSummary(null);
+      });
+    } else {
+      setBuses([]);
+      setSummary(null);
+    }
   }, [sessionId]);
 
   async function runRouting() {
     setBusy(true);
     setMsg('');
+    setWarnings([]);
     try {
       const res = await api.post(`/admin/route/${sessionId}`);
       setMsg(res.data.message);
-      await loadBuses(sessionId);
+      setWarnings(res.data.warnings || []);
+      await loadSession(sessionId);
     } catch (err) {
       setMsg(err.response?.data?.message || 'Routing failed');
     } finally {
       setBusy(false);
     }
   }
+
+  async function rotate(busId) {
+    const res = await api.post(`/admin/bus/${busId}/rotate-driver-token`);
+    setBuses((prev) =>
+      prev.map((b) => (b._id === busId ? { ...b, driverToken: res.data.driverToken } : b))
+    );
+    setCopied('');
+  }
+
+  const driverUrl = (bus) => `${window.location.origin}/drive/${bus.driverToken}`;
 
   return (
     <div>
@@ -75,7 +121,9 @@ export default function Admin() {
             onChange={(e) => setExamId(e.target.value)}
           >
             {exams.map((e) => (
-              <option key={e._id} value={e._id}>{e.name}</option>
+              <option key={e._id} value={e._id}>
+                {e.name}
+              </option>
             ))}
           </select>
         </div>
@@ -102,27 +150,72 @@ export default function Admin() {
         </button>
       </div>
 
-      {msg && <p className="text-sm text-green-700 mb-4">{msg}</p>}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+          {[
+            ['Bookings', summary.total],
+            ['Paid', summary.paid],
+            ['Seats to route', summary.seatsToRoute],
+            ['Assigned', summary.assigned],
+            ['Boarded', summary.boarded],
+          ].map(([label, value]) => (
+            <div key={label} className="bg-white border rounded-lg px-3 py-2">
+              <div className="text-lg font-semibold">{value}</div>
+              <div className="text-xs text-slate-500">{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/*
+        A refund that failed at the gateway is money still owed to a student.
+        Cancellation deliberately succeeds even when the refund call fails —
+        the seat must be released either way — so the unpaid balance has to
+        surface somewhere a human looks, or it is simply lost.
+      */}
+      {summary?.refundsFailed > 0 && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3 mb-4">
+          ⚠️ {summary.refundsFailed} refund{summary.refundsFailed > 1 ? 's' : ''} failed at
+          the gateway — ₹{summary.refundsOwed} still owed. These need settling manually.
+        </div>
+      )}
+
+      {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
+      {warnings.length > 0 && (
+        <ul className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 mb-4">
+          {warnings.map((w, i) => (
+            <li key={i}>⚠️ {w}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="space-y-4">
         {buses.map((bus) => (
           <div key={bus._id} className="bg-white border rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">{bus.label}</h3>
-              <span className="text-sm text-slate-500">
-                {bus.seatsUsed}/{bus.capacity} seats · departs {fmtDateTime(bus.departureTime)}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-medium">
+                {bus.label}
+                {bus.isOvernight && (
+                  <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                    overnight
+                  </span>
+                )}
+              </h3>
+              <SeatBar used={bus.seatsUsed} capacity={bus.capacity} />
             </div>
+
+            <p className="text-sm text-slate-500 mt-1">
+              Departs <b>{fmtDateTime(bus.departureTime)}</b> · arrives{' '}
+              <b>{fmtDateTime(bus.arrivalTime)}</b> ({bus.totalDurationMin} min travel)
+            </p>
+
             <ol className="mt-2 text-sm list-decimal list-inside text-slate-600">
               {bus.route.map((stop, i) => (
                 <li key={i}>
-                  {stop.name} — {fmtDateTime(stop.pickupTime)}
+                  {stop.name} — {fmtShort(stop.pickupTime)}
                 </li>
               ))}
             </ol>
-            <p className="text-xs text-slate-500 mt-2">
-              Arrives at center by {fmtDateTime(bus.arrivalTime)} ({bus.totalDurationMin} min travel)
-            </p>
 
             <div className="mt-3">
               <MapView
@@ -132,17 +225,45 @@ export default function Admin() {
                 height={220}
               />
             </div>
-            <Link
-              to={`/drive/${bus._id}`}
-              className="inline-block mt-2 text-sm text-brand hover:underline"
-            >
-              🚍 Open driver page (share live location)
-            </Link>
+
+            {/*
+              The driver link carries its own authorisation, so it can be sent
+              to a driver who has no account at all. Rotating it revokes the
+              old one — the recovery path for a link that leaks.
+            */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <a
+                href={driverUrl(bus)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-brand hover:underline"
+              >
+                🚍 Open driver page
+              </a>
+              <button
+                onClick={async () => {
+                  await copy(driverUrl(bus));
+                  setCopied(bus._id);
+                }}
+                className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded"
+              >
+                {copied === bus._id ? '✓ Copied' : 'Copy driver link'}
+              </button>
+              <button
+                onClick={() => rotate(bus._id)}
+                className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded"
+                title="Invalidates the current link and issues a new one"
+              >
+                Rotate link
+              </button>
+              <span className="text-xs text-slate-400">no login required</span>
+            </div>
           </div>
         ))}
+
         {buses.length === 0 && (
           <p className="text-sm text-slate-500">
-            No buses yet. Run the routing engine after students have paid for this session.
+            No buses yet. Run the routing engine once students have paid for this sitting.
           </p>
         )}
       </div>

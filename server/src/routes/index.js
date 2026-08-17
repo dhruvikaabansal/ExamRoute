@@ -53,6 +53,7 @@ router.post('/bookings/quote', protect, bookings.quote);
 router.post('/bookings', protect, bookings.createBooking);
 router.get('/bookings/mine', protect, bookings.myBookings);
 router.get('/bookings/:id', protect, bookings.getBooking);
+router.get('/bookings/:id/refund-quote', protect, bookings.refundQuote);
 router.post('/bookings/:id/cancel', protect, bookings.cancelBooking);
 router.get('/bookings/:id/bus-location', protect, bookings.busLocation);
 

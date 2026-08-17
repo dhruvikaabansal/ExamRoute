@@ -35,6 +35,30 @@ const bookingSchema = new mongoose.Schema(
 
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
+    paidAt: { type: Date },
+
+    /**
+     * Refund state.
+     *
+     * `status: 'cancelled'` says the seat was released; it says nothing about
+     * the money. Those are genuinely two different facts — a refund can fail
+     * at the gateway long after the seat is gone — so they get separate
+     * fields rather than being conflated into one status enum.
+     *
+     *   none      — nothing was ever paid, so nothing is owed
+     *   pending   — cancelled while paid, refund not yet placed
+     *   processed — Razorpay accepted the refund request
+     *   failed    — the gateway rejected it; needs manual follow-up
+     */
+    refundStatus: {
+      type: String,
+      enum: ['none', 'pending', 'processed', 'failed'],
+      default: 'none',
+    },
+    refundId: { type: String },
+    refundAmount: { type: Number },
+    refundedAt: { type: Date },
+    refundError: { type: String },
 
     // pickup stop assigned immediately at booking (geofenced nearest stop),
     // then refined by the routing engine when the bus is formed
@@ -50,6 +74,8 @@ const bookingSchema = new mongoose.Schema(
     ticketToken: { type: String, index: true },
     boarded: { type: Boolean, default: false },
     boardedAt: { type: Date },
+    // audit trail: which conductor performed the admit-card check
+    boardedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

@@ -56,6 +56,16 @@ export async function bookingsForSession(req, res) {
       cancelled: bookings.filter((b) => b.status === 'cancelled').length,
       seatsToRoute: seatsOf(paid),
       boarded: bookings.filter((b) => b.boarded).length,
+      // A refund that failed at the gateway is money we still owe a student.
+      // It has to be visible to somebody or it is just a lost rupee, so it is
+      // surfaced here rather than sitting in a field nobody reads.
+      refundsFailed: bookings.filter((b) => b.refundStatus === 'failed').length,
+      refundsOwed: bookings
+        .filter((b) => b.refundStatus === 'failed')
+        .reduce((sum, b) => sum + (b.refundAmount || 0), 0),
+      refundedTotal: bookings
+        .filter((b) => b.refundStatus === 'processed')
+        .reduce((sum, b) => sum + (b.refundAmount || 0), 0),
     },
   });
 }
