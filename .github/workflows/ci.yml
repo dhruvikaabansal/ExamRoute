@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+
+    # The integration suite talks to a real MongoDB rather than a mock,
+    # because much of what it asserts *is* database behaviour: the 2dsphere
+    # index behind the geofenced stop lookup, and the unique compound index
+    # that makes double booking impossible under a race. A stubbed driver
+    # would agree with whatever the code expected and prove nothing.
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Point the suite at the service container instead of letting
+      # mongodb-memory-server download a private binary on every run.
+      MONGO_TEST_URI: mongodb://127.0.0.1:27017
+      # UTC on purpose. The timezone bug this project fixed only reproduces
+      # when the host clock differs from IST, so CI must not run in IST.
+      TZ: UTC
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install
+        working-directory: server
+        run: npm ci
+
+      - name: Test
+        working-directory: server
+        run: npm test
+
+  client:
+    name: Client build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install
+        working-directory: client
+        run: npm ci
+
+      - name: Build
+        working-directory: client
+        run: npm run build

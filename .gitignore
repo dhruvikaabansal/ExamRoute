@@ -31,3 +31,10 @@ Thumbs.db
 # Misc
 coverage/
 .cache/
+
+# Personal study material that happens to live in this folder — not part of
+# the project, and must never end up in the repo.
+_personal/
+NU_Placement_Prep*.xlsx
+SQL_DBMS_*Placement_Guide.md
+*.xlsx
