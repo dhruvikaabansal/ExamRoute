@@ -4,6 +4,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { payBooking } from '../lib/pay';
 import LocationPicker from '../components/LocationPicker';
+import { fmtDate, fmtTime } from '../lib/format';
 
 // A few Rajasthan home presets so the demo has sensible distances
 const PRESETS = [
@@ -13,11 +14,6 @@ const PRESETS = [
   { label: 'Alwar', c: [76.61, 27.553] },
   { label: 'Bikaner', c: [73.3119, 28.0229] },
 ];
-
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-const fmtTime = (d) =>
-  new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default function BookExam() {
   const { examId } = useParams();

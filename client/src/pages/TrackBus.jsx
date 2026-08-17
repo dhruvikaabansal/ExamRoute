@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/client';
 import MapView from '../components/MapView';
+import { fmtTime } from '../lib/format';
 
 // Student view — polls the assigned bus's live location every few seconds.
 export default function TrackBus() {
@@ -37,7 +38,7 @@ export default function TrackBus() {
       <h2 className="text-xl font-semibold mb-1">Live bus tracking</h2>
       <p className="text-sm text-slate-500 mb-3">
         {bus
-          ? `Bus last seen ${data.lastLocationAt ? new Date(data.lastLocationAt).toLocaleTimeString() : ''}. Refreshes automatically.`
+          ? `Bus last seen ${fmtTime(data.lastLocationAt)}. Refreshes automatically.`
           : 'The driver hasn’t started sharing location yet. This page will update when they do.'}
       </p>
       <MapView
