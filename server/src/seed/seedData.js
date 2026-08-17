@@ -5,14 +5,22 @@ import Exam from '../models/Exam.js';
 import ExamSession from '../models/ExamSession.js';
 import Center from '../models/Center.js';
 import Stop from '../models/Stop.js';
+import { atIst, addDays, formatIst } from '../utils/time.js';
 
 // ---------------------------------------------------------------------------
 // REAL Rajasthan reference data. Coordinates are [lng, lat].
-// Exam patterns/timings below reflect the actual 2025 NTA schedule:
+//
+// Exam patterns/timings reflect the actual NTA schedule:
 //   JEE Main : multi-day, 2 shifts/day  (09:00-12:00 gate 08:30, 15:00-18:00 gate 14:30)
 //   NEET UG  : single day, single shift (14:00-17:00, gate 13:30)
-//   CUET UG  : multi-day, multiple shifts (subject-wise; ~2 hrs reporting)
-// The 13 cities are NTA's real JEE Main exam cities in Rajasthan (with city codes).
+//   CUET UG  : multi-day, subject-wise shifts
+//
+// All times are IST wall-clock, built with `atIst` so they are stored as
+// correct UTC instants. Using `date.setHours(9)` here would encode the *seed
+// machine's* timezone, which silently shifts every exam by 5.5 hours once the
+// app is deployed to a UTC host.
+//
+// The 13 cities are NTA's real JEE Main exam cities in Rajasthan (with codes).
 // ---------------------------------------------------------------------------
 
 const cities = [
@@ -40,8 +48,7 @@ const centers = cities.map((c) => ({
   location: { type: 'Point', coordinates: c.coordinates },
 }));
 
-// Known common pickup stops (railway station / bus stand) per town.
-// Students are snapped to the nearest of these.
+// Known common pickup stops per town. Students are snapped to the nearest.
 const stops = cities.flatMap((c) => [
   {
     name: `${c.city} Railway Station`,
@@ -53,7 +60,7 @@ const stops = cities.flatMap((c) => [
     name: `${c.city} Central Bus Stand`,
     city: c.city,
     state: 'Rajasthan',
-    // nudge ~1.5 km so it's a distinct pickup point
+    // nudge ~1.5 km so it is a distinct pickup point
     location: {
       type: 'Point',
       coordinates: [c.coordinates[0] + 0.015, c.coordinates[1] + 0.01],
@@ -61,16 +68,18 @@ const stops = cities.flatMap((c) => [
   },
 ]);
 
-// date helper (local IST on the user's machine)
-function at(baseDate, h, m = 0) {
-  const d = new Date(baseDate);
-  d.setHours(h, m, 0, 0);
-  return d;
-}
-function addDays(d, n) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+/** Builds one sitting: exam start, gate close 30 min before, reporting 2h before. */
+function makeSession(examId, day, { startHour, startMinute = 0, shiftLabel, subject }) {
+  const examStart = atIst(day, startHour, startMinute);
+  return {
+    exam: examId,
+    date: atIst(day, 0, 0),
+    shiftLabel,
+    subject,
+    examStart,
+    gateClose: new Date(examStart.getTime() - 30 * 60_000),
+    reportingTime: new Date(examStart.getTime() - 120 * 60_000),
+  };
 }
 
 async function seed() {
@@ -104,22 +113,8 @@ async function seed() {
   for (let day = 0; day < 3; day++) {
     const d = addDays(jeeStart, day);
     jeeSessions.push(
-      {
-        exam: jee._id,
-        date: d,
-        shiftLabel: 'Shift 1 (9 AM - 12 PM)',
-        examStart: at(d, 9, 0),
-        gateClose: at(d, 8, 30), // gate closes 30 min before
-        reportingTime: at(d, 7, 0), // recommended ~2 hrs early
-      },
-      {
-        exam: jee._id,
-        date: d,
-        shiftLabel: 'Shift 2 (3 PM - 6 PM)',
-        examStart: at(d, 15, 0),
-        gateClose: at(d, 14, 30),
-        reportingTime: at(d, 13, 0),
-      }
+      makeSession(jee._id, d, { startHour: 9, shiftLabel: 'Shift 1 (9 AM - 12 PM)' }),
+      makeSession(jee._id, d, { startHour: 15, shiftLabel: 'Shift 2 (3 PM - 6 PM)' })
     );
   }
 
@@ -133,14 +128,10 @@ async function seed() {
     bookingDeadline: deadline,
   });
   const neetSessions = [
-    {
-      exam: neet._id,
-      date: neetDay,
+    makeSession(neet._id, neetDay, {
+      startHour: 14,
       shiftLabel: 'Single Shift (2 PM - 5 PM)',
-      examStart: at(neetDay, 14, 0),
-      gateClose: at(neetDay, 13, 30),
-      reportingTime: at(neetDay, 11, 0),
-    },
+    }),
   ];
 
   // ---- CUET UG: 2 days x 2 subject shifts ----
@@ -156,32 +147,30 @@ async function seed() {
   for (let day = 0; day < 2; day++) {
     const d = addDays(cuetStart, day);
     cuetSessions.push(
-      {
-        exam: cuet._id,
-        date: d,
+      makeSession(cuet._id, d, {
+        startHour: 10,
         shiftLabel: 'Shift 1 (10 AM)',
         subject: day === 0 ? 'Physics / Chemistry' : 'English / GK',
-        examStart: at(d, 10, 0),
-        gateClose: at(d, 9, 30),
-        reportingTime: at(d, 8, 0),
-      },
-      {
-        exam: cuet._id,
-        date: d,
+      }),
+      makeSession(cuet._id, d, {
+        startHour: 15,
         shiftLabel: 'Shift 2 (3 PM)',
         subject: day === 0 ? 'Mathematics' : 'Biology',
-        examStart: at(d, 15, 0),
-        gateClose: at(d, 14, 30),
-        reportingTime: at(d, 13, 0),
-      }
+      })
     );
   }
 
-  await ExamSession.insertMany([...jeeSessions, ...neetSessions, ...cuetSessions]);
+  const all = [...jeeSessions, ...neetSessions, ...cuetSessions];
+  await ExamSession.insertMany(all);
 
   console.log('✅ Seeded real Rajasthan data:');
-  console.log(`   Exams: JEE (${jeeSessions.length} sessions), NEET (${neetSessions.length}), CUET (${cuetSessions.length})`);
-  console.log(`   Centers: ${centers.length} cities · Stops: ${stops.length}`);
+  console.log(
+    `   Exams: JEE (${jeeSessions.length} sessions), NEET (${neetSessions.length}), CUET (${cuetSessions.length})`
+  );
+  console.log(`   Centres: ${centers.length} cities · Stops: ${stops.length}`);
+  console.log(`   Booking deadline: ${formatIst(deadline)} IST`);
+  console.log(`   First JEE sitting starts: ${formatIst(jeeSessions[0].examStart)} IST`);
+
   await mongoose.disconnect();
   process.exit(0);
 }

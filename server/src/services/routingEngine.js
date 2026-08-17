@@ -1,79 +1,87 @@
+import crypto from 'crypto';
 import Booking from '../models/Booking.js';
 import Bus from '../models/Bus.js';
-import Stop from '../models/Stop.js';
 import ExamSession from '../models/ExamSession.js';
 import Center from '../models/Center.js';
-import { optimizeRoute, haversineKm } from './mapsService.js';
-
-// Simple k-means on [lng, lat]. k = number of buses. A few iterations is plenty
-// for a few dozen students and easy to explain in a viva.
-function kMeans(points, k, iterations = 10) {
-  if (points.length <= k) return points.map((_, i) => i % k);
-  let centroids = points.slice(0, k).map((p) => [...p]);
-  const assignments = new Array(points.length).fill(0);
-
-  for (let iter = 0; iter < iterations; iter++) {
-    for (let i = 0; i < points.length; i++) {
-      let best = 0;
-      let bestDist = Infinity;
-      for (let c = 0; c < k; c++) {
-        const d = haversineKm(points[i], centroids[c]);
-        if (d < bestDist) {
-          bestDist = d;
-          best = c;
-        }
-      }
-      assignments[i] = best;
-    }
-    const sums = Array.from({ length: k }, () => [0, 0, 0]);
-    for (let i = 0; i < points.length; i++) {
-      const c = assignments[i];
-      sums[c][0] += points[i][0];
-      sums[c][1] += points[i][1];
-      sums[c][2] += 1;
-    }
-    for (let c = 0; c < k; c++) {
-      if (sums[c][2] > 0)
-        centroids[c] = [sums[c][0] / sums[c][2], sums[c][1] / sums[c][2]];
-    }
-  }
-  return assignments;
-}
-
-function nearestStop(homeCoords, stops) {
-  let best = stops[0];
-  let bestDist = Infinity;
-  for (const s of stops) {
-    const d = haversineKm(homeCoords, s.location.coordinates);
-    if (d < bestDist) {
-      bestDist = d;
-      best = s;
-    }
-  }
-  return best;
-}
-
-const seatsOf = (bookings) => bookings.reduce((sum, b) => sum + (b.seats || 1), 0);
+import { optimizeRoute } from './mapsService.js';
+import { assignStop } from './stopService.js';
+import { clusterByCapacity, seatsOf } from './clustering.js';
+import { addMinutes, isDifferentIstDay } from '../utils/time.js';
+import { ApiError } from '../utils/apiError.js';
 
 /**
- * Runs routing for ONE session (a specific date + shift):
- *   1. cluster paid students per center into buses (respecting SEAT capacity)
- *   2. snap each student to nearest known common stop
- *   3. order stops via Directions optimize + compute leg durations
- *   4. work backward from the exam GATE-CLOSE time (minus buffer) to get the
- *      departure time and each stop's pickup time (date-aware -> may be overnight)
+ * Turns paid bookings into buses with ordered stops and timed pickups.
+ *
+ * For one session (a specific exam date + shift), per exam centre:
+ *   1. CLUSTER — group paid students into buses that each fit within seat
+ *      capacity (see services/clustering.js).
+ *   2. SNAP    — map each student to a pickup stop using the *same*
+ *      geofenced lookup used at booking time, so the stop shown on the
+ *      confirmation screen never silently changes.
+ *   3. ORDER   — hand the stops to Directions with optimize:true, which
+ *      returns the optimal visiting order plus per-leg durations.
+ *   4. TIME    — work backwards from the arrival target to a departure time
+ *      and a pickup time per stop.
+ *
+ * We deliberately do not solve Vehicle Routing from scratch: it is NP-hard,
+ * and clustering plus delegating stop order to Directions is correct,
+ * explainable, and good enough at this scale.
+ */
+
+/**
+ * When the bus should be at the centre.
+ *
+ * Two constraints, and we honour the tighter one:
+ *   - `reportingTime` is the officially recommended arrival (typically ~2h
+ *     before the paper). This is what we aim for.
+ *   - `gateClose` is the hard deadline; missing it means missing the exam.
+ *     We keep a safety buffer behind it and never plan later than that.
+ *
+ * The previous version only used `gateClose - buffer`, which had students
+ * arriving 30 minutes before the gate shut while the seeded `reportingTime`
+ * sat unused — planning to the deadline rather than to the recommendation.
+ */
+export function computeArrivalTarget(session, bufferMin) {
+  const latestSafe = addMinutes(new Date(session.gateClose), -bufferMin);
+  const recommended = session.reportingTime ? new Date(session.reportingTime) : null;
+  if (!recommended) return latestSafe;
+  return recommended.getTime() < latestSafe.getTime() ? recommended : latestSafe;
+}
+
+/** Builds the per-stop schedule for a route, working forward from departure. */
+export function buildSchedule(orderedStops, legsMin, departureTime) {
+  let cumulative = 0;
+  return orderedStops.map((stop, i) => {
+    const pickupTime = addMinutes(departureTime, cumulative);
+    cumulative += legsMin[i] || 0;
+    return { name: stop.name, coordinates: stop.coordinates, pickupTime };
+  });
+}
+
+/**
+ * Runs routing for ONE session. Idempotent: re-running fully rebuilds the
+ * buses for that session and resets any previously assigned bookings first,
+ * so a second click on the admin page cannot leave bookings pointing at a
+ * bus that no longer exists.
  */
 export async function runRoutingForSession(sessionId) {
   const session = await ExamSession.findById(sessionId);
-  if (!session) throw new Error('Session not found');
+  if (!session) throw ApiError.notFound('Session not found');
 
   const capacity = Number(process.env.BUS_CAPACITY || 40);
   const bufferMin = Number(process.env.SAFETY_BUFFER_MIN || 60);
 
+  // Clean slate — drop old buses and un-assign their passengers.
   await Bus.deleteMany({ session: sessionId });
+  await Booking.updateMany(
+    { session: sessionId, status: 'assigned' },
+    { $set: { status: 'paid' }, $unset: { bus: '', pickupTime: '' } }
+  );
 
+  const arrivalTime = computeArrivalTarget(session, bufferMin);
   const centers = await Center.find({});
-  const results = [];
+  const buses = [];
+  const warnings = [];
 
   for (const center of centers) {
     const bookings = await Booking.find({
@@ -83,29 +91,34 @@ export async function runRoutingForSession(sessionId) {
     });
     if (bookings.length === 0) continue;
 
-    const stops = await Stop.find({});
-    if (stops.length === 0) continue;
+    // Snap every student to a stop using the shared geofenced lookup.
+    // One indexed $near per booking — a few dozen queries per centre, which
+    // is trivially fast and worth it to keep a single stop-assignment rule.
+    const stopAssignments = await Promise.all(
+      bookings.map((b) => assignStop(b.homeLocation.coordinates))
+    );
 
-    const points = bookings.map((b) => b.homeLocation.coordinates);
-    // k must be enough to fit total SEATS (companions count), not just headcount
-    const totalSeats = seatsOf(bookings);
-    const k = Math.max(1, Math.ceil(totalSeats / capacity));
-    const assignments = kMeans(points, k);
+    const routable = [];
+    bookings.forEach((booking, i) => {
+      const assigned = stopAssignments[i];
+      if (!assigned) {
+        warnings.push(`No pickup stop found for booking ${booking._id}`);
+        return;
+      }
+      booking._stop = assigned.stop;
+      booking._stopDistanceKm = assigned.distanceKm;
+      booking._stopEtaMin = assigned.etaMin;
+      routable.push(booking);
+    });
+    if (routable.length === 0) continue;
 
-    const clusters = Array.from({ length: k }, () => []);
-    bookings.forEach((b, i) => clusters[assignments[i]].push(b));
+    const clusters = clusterByCapacity(routable, capacity);
 
     let busIndex = 1;
     for (const clusterBookings of clusters) {
-      if (clusterBookings.length === 0) continue;
-
-      // unique common stops for this cluster
+      // Distinct stops for this bus (several students share one stop).
       const stopMap = new Map();
-      for (const b of clusterBookings) {
-        const s = nearestStop(b.homeLocation.coordinates, stops);
-        stopMap.set(String(s._id), s);
-        b._assignedStop = s;
-      }
+      for (const b of clusterBookings) stopMap.set(String(b._stop._id), b._stop);
       const clusterStops = [...stopMap.values()].map((s) => ({
         name: s.name,
         coordinates: s.location.coordinates,
@@ -116,18 +129,8 @@ export async function runRoutingForSession(sessionId) {
         center.location.coordinates
       );
 
-      // arrive by gateClose - buffer; departure = arrival - totalTravel
-      const gateClose = new Date(session.gateClose).getTime();
-      const arrivalTime = new Date(gateClose - bufferMin * 60000);
-      const departureTime = new Date(arrivalTime.getTime() - totalMin * 60000);
-
-      // per-stop pickup times, cumulative from departure
-      let cumulative = 0;
-      const routeWithTimes = order.map((stop, i) => {
-        const pickup = new Date(departureTime.getTime() + cumulative * 60000);
-        cumulative += legsMin[i] || 0;
-        return { name: stop.name, coordinates: stop.coordinates, pickupTime: pickup };
-      });
+      const departureTime = addMinutes(arrivalTime, -totalMin);
+      const route = buildSchedule(order, legsMin, departureTime);
 
       const bus = await Bus.create({
         exam: session.exam,
@@ -136,30 +139,45 @@ export async function runRoutingForSession(sessionId) {
         label: `${center.city} - Bus ${busIndex}`,
         capacity,
         seatsUsed: seatsOf(clusterBookings),
-        route: routeWithTimes,
+        route,
         departureTime,
         arrivalTime,
         totalDurationMin: totalMin,
+        // Long routes from far towns leave the night before. Flagging it means
+        // the student sees "departs Thu 11:40 PM" as a deliberate fact rather
+        // than a date that looks like a bug.
+        isOvernight: isDifferentIstDay(departureTime, arrivalTime),
+        driverToken: crypto.randomBytes(24).toString('hex'),
         passengers: clusterBookings.map((b) => b._id),
       });
 
-      for (const b of clusterBookings) {
-        const stopName = b._assignedStop.name;
-        const match = routeWithTimes.find((r) => r.name === stopName);
-        b.bus = bus._id;
-        b.status = 'assigned';
-        b.assignedStop = {
-          name: stopName,
-          coordinates: b._assignedStop.location.coordinates,
-        };
-        b.pickupTime = match ? match.pickupTime : departureTime;
-        await b.save();
-      }
+      // One round trip instead of a save() per passenger.
+      const pickupByStop = new Map(route.map((r) => [r.name, r.pickupTime]));
+      await Booking.bulkWrite(
+        clusterBookings.map((b) => ({
+          updateOne: {
+            filter: { _id: b._id },
+            update: {
+              $set: {
+                bus: bus._id,
+                status: 'assigned',
+                pickupTime: pickupByStop.get(b._stop.name) ?? departureTime,
+                assignedStop: {
+                  name: b._stop.name,
+                  coordinates: b._stop.location.coordinates,
+                },
+                stopDistanceKm: b._stopDistanceKm,
+                stopEtaMin: b._stopEtaMin,
+              },
+            },
+          },
+        }))
+      );
 
-      results.push(bus);
+      buses.push(bus);
       busIndex++;
     }
   }
 
-  return results;
+  return { buses, warnings };
 }

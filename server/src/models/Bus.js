@@ -23,7 +23,19 @@ const busSchema = new mongoose.Schema(
     departureTime: { type: Date },
     arrivalTime: { type: Date }, // planned arrival at center
     totalDurationMin: { type: Number },
+
+    // true when departure falls on an earlier IST calendar day than arrival —
+    // long routes from far towns genuinely leave the night before, and the UI
+    // labels it so the date does not look like a bug
+    isOvernight: { type: Boolean, default: false },
+
     passengers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
+
+    // Capability link for the driver: a random per-bus secret that authorises
+    // posting GPS for THIS bus and nothing else. Drivers therefore need no
+    // account at all, instead of the admin credentials the old flow required.
+    // Rotatable from the admin page if a link leaks.
+    driverToken: { type: String, index: true },
 
     // live tracking: the driver's device posts its position here periodically
     currentLocation: { lng: Number, lat: Number },
