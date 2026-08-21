@@ -26,17 +26,33 @@ const toLatLng = (c) => [c[1], c[0]];
  *  bus         {lng,lat}            - live bus position (optional)
  *  geofenceKm  number              - draw catchment circles around stops
  */
+/**
+ * A live position is only usable if it is actually two numbers.
+ *
+ * `currentLocation` is a nested path on the Bus schema, so Mongoose returns an
+ * empty object rather than undefined for a bus whose driver has not started
+ * sharing yet. That object is truthy, so it reached Leaflet as
+ * `[undefined, undefined]`, Leaflet threw "Invalid LatLng object", and with no
+ * error boundary above it React unmounted the whole application — a blank
+ * white page on both the driver screen and live tracking.
+ */
+const hasPosition = (p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng);
+
 export default function MapView({ home, center, stops = [], route = [], bus, geofenceKm = 0, height = 320 }) {
+  const livePosition = hasPosition(bus) ? bus : null;
+
   const points = [];
   if (home) points.push(toLatLng(home));
   if (center) points.push(toLatLng(center));
-  stops.forEach((s) => points.push(toLatLng(s.coordinates)));
-  if (bus) points.push([bus.lat, bus.lng]);
+  stops.filter((s) => Array.isArray(s?.coordinates)).forEach((s) => points.push(toLatLng(s.coordinates)));
+  if (livePosition) points.push([livePosition.lat, livePosition.lng]);
 
   const fallback = [26.9124, 75.7873]; // Jaipur
   const centerPoint = points[0] || fallback;
 
-  const routeLine = route.map((s) => toLatLng(s.coordinates));
+  const routeLine = route
+    .filter((s) => Array.isArray(s?.coordinates))
+    .map((s) => toLatLng(s.coordinates));
 
   return (
     <div style={{ height }} className="rounded-lg overflow-hidden border">
@@ -58,7 +74,7 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
           </Marker>
         )}
 
-        {stops.map((s, i) => (
+        {stops.filter((s) => Array.isArray(s?.coordinates)).map((s, i) => (
           <div key={i}>
             <Marker position={toLatLng(s.coordinates)} icon={icon('green')}>
               <Popup>{s.name}</Popup>
@@ -77,8 +93,8 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
           <Polyline positions={routeLine} pathOptions={{ color: '#2563eb', weight: 3 }} />
         )}
 
-        {bus && (
-          <Marker position={[bus.lat, bus.lng]} icon={icon('red')}>
+        {livePosition && (
+          <Marker position={[livePosition.lat, livePosition.lng]} icon={icon('red')}>
             <Popup>🚌 Bus (live)</Popup>
           </Marker>
         )}

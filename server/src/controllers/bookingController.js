@@ -6,6 +6,7 @@ import Center from '../models/Center.js';
 import { computeFare } from '../utils/fare.js';
 import { refundPolicy } from '../utils/refundPolicy.js';
 import { refundPayment } from '../services/paymentGateway.js';
+import { liveLocation } from './driverController.js';
 import { assignStop } from '../services/stopService.js';
 import { ApiError } from '../utils/apiError.js';
 import {
@@ -159,7 +160,7 @@ export async function busLocation(req, res) {
   if (!booking.bus) throw ApiError.notFound('No bus assigned yet');
 
   res.json({
-    currentLocation: booking.bus.currentLocation || null,
+    currentLocation: liveLocation(booking.bus),
     lastLocationAt: booking.bus.lastLocationAt || null,
     departureTime: booking.bus.departureTime,
     route: booking.bus.route,

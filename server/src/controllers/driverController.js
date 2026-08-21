@@ -1,6 +1,19 @@
 import { ApiError } from '../utils/apiError.js';
 
 /**
+ * A live position, or null — never a half-empty object.
+ *
+ * `currentLocation` is a nested path on the schema, so Mongoose hands back an
+ * empty object for a bus that has never reported, and `value || null` keeps
+ * it, because `{}` is truthy. Clients then treated "no position" as "a
+ * position", and mapped it to coordinates that do not exist.
+ */
+export function liveLocation(bus) {
+  const { lng, lat } = bus.currentLocation || {};
+  return Number.isFinite(lng) && Number.isFinite(lat) ? { lng, lat } : null;
+}
+
+/**
  * The driver-facing API, authenticated by a per-bus capability link rather
  * than an account (see middleware/auth.js → driverTokenAuth).
  *
@@ -29,7 +42,7 @@ export async function getDriverBus(req, res) {
           coordinates: bus.center.location.coordinates,
         }
       : null,
-    currentLocation: bus.currentLocation || null,
+    currentLocation: liveLocation(bus),
     lastLocationAt: bus.lastLocationAt || null,
   });
 }

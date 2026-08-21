@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import DemoBanner from './components/DemoBanner';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 
 /**
@@ -34,11 +35,17 @@ function Protected({ children }) {
 
 export default function App() {
   const { user } = useAuth();
+  const location = useLocation();
   return (
     <div className="min-h-screen">
       <DemoBanner />
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 py-6">
+        {/*
+          Keyed on the path so navigating away from a crashed screen clears the
+          error, rather than leaving the boundary stuck showing it forever.
+        */}
+        <ErrorBoundary key={location.pathname}>
         <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading…</div>}>
           <Routes>
             <Route path="/" element={user ? <Navigate to="/exams" /> : <Login />} />
@@ -64,6 +71,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );
