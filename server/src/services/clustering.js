@@ -181,7 +181,9 @@ export function sweepCandidates(bookings, capacity, center) {
   const n = byAngle.length;
   const starts = new Set();
   // Every rotation for small cohorts; an even spread once that gets silly.
-  const step = Math.max(1, Math.ceil(n / 64));
+  // Each start now yields two candidates, so the ceiling is half what it was
+  // — the extra starts were buying almost nothing and costing real time.
+  const step = Math.max(1, Math.ceil(n / 32));
   for (let i = 0; i < n; i += step) starts.add(i);
 
   // How many buses the cohort needs at all. Everyone counts, fillers included.
