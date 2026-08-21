@@ -33,9 +33,28 @@ export function averageSpeedKmh(km) {
   return 60; // national highways
 }
 
+/**
+ * Roads are not straight lines.
+ *
+ * Haversine gives the crow-flies distance, which understates a real drive by
+ * roughly a quarter — Bikaner to Udaipur is 384 km straight and about 500 km
+ * by road. Ignoring that made long journeys look faster than they are and,
+ * more visibly, made an overnight departure look like a same-day one. 1.25 is
+ * the standard circuity factor for road networks of this kind.
+ *
+ * Applied to time estimates only. Fare stays on straight-line distance: it is
+ * the simpler promise to make to a student, and it cannot drift with a
+ * routing assumption.
+ */
+export const ROAD_CIRCUITY = 1.25;
+
+export function roadDistanceKm(from, to) {
+  return haversineKm(from, to) * ROAD_CIRCUITY;
+}
+
 // Estimated travel minutes between two [lng, lat] points.
 export function travelMinutes(from, to) {
-  const km = haversineKm(from, to);
+  const km = roadDistanceKm(from, to);
   return Math.max(1, Math.round((km / averageSpeedKmh(km)) * 60));
 }
 
@@ -183,8 +202,7 @@ export function mockOptimize(stops, destination) {
   for (let i = 0; i < order.length; i++) {
     const from = order[i].coordinates;
     const to = i + 1 < order.length ? order[i + 1].coordinates : destination;
-    const km = haversineKm(from, to);
-    legsMin.push(Math.max(1, Math.round((km / averageSpeedKmh(km)) * 60)));
+    legsMin.push(travelMinutes(from, to));
   }
   const totalMin = legsMin.reduce((a, b) => a + b, 0);
   return { order, legsMin, totalMin };

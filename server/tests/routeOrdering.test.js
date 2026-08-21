@@ -5,6 +5,8 @@ import {
   twoOptImprove,
   tourLengthKm,
   haversineKm,
+  roadDistanceKm,
+  travelMinutes,
   averageSpeedKmh,
 } from '../src/services/mapsService.js';
 
@@ -23,6 +25,8 @@ const SIKAR = [75.1398, 27.6094];
 const DAUSA = [76.3344, 26.8894];
 const ALWAR = [76.61, 27.553];
 const AJMER = [74.6399, 26.4499];
+const BIKANER = [73.3119, 28.0229];
+const UDAIPUR = [73.7125, 24.5854];
 
 const stop = (name, coordinates) => ({ name, coordinates });
 
@@ -112,8 +116,24 @@ describe('travel time estimates', () => {
 
   it('does not claim a 250 km trip takes eight hours', () => {
     // The old flat 30 km/h turned Alwar→Ajmer into an overnight expedition.
-    const km = haversineKm(ALWAR, AJMER);
-    const minutes = (km / averageSpeedKmh(km)) * 60;
-    expect(minutes).toBeLessThan(6 * 60);
+    expect(travelMinutes(ALWAR, AJMER)).toBeLessThan(6 * 60);
+  });
+
+  it('allows for roads not being straight lines', () => {
+    // Crow-flies distance understates a real drive by roughly a quarter.
+    // Ignoring that made long journeys look faster than they are, and turned
+    // a genuinely overnight departure into a same-day one.
+    const straight = haversineKm(BIKANER, UDAIPUR);
+    const road = roadDistanceKm(BIKANER, UDAIPUR);
+    expect(road).toBeGreaterThan(straight);
+    expect(road / straight).toBeCloseTo(1.25, 2);
+  });
+
+  it('estimates Bikaner to Udaipur as a genuinely overnight drive', () => {
+    // ~500 km by road. Any estimate that fits inside a morning is wrong, and
+    // would show a student a departure time on the wrong calendar day.
+    const hours = travelMinutes(BIKANER, UDAIPUR) / 60;
+    expect(hours).toBeGreaterThan(7);
+    expect(hours).toBeLessThan(10);
   });
 });
