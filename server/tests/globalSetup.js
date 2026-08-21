@@ -18,9 +18,17 @@
 // Fail fast rather than retrying a download that will never succeed.
 process.env.MONGOMS_DOWNLOAD_RETRIES = process.env.MONGOMS_DOWNLOAD_RETRIES ?? '0';
 process.env.MONGOMS_DISABLE_POSTINSTALL = '1';
-// Pin the version so every machine downloads and caches the same binary
-// instead of re-fetching 600 MB whenever the default moves.
-process.env.MONGOMS_VERSION = process.env.MONGOMS_VERSION ?? '7.0.14';
+/**
+ * Pin the version so a machine caches one binary rather than re-fetching
+ * 600 MB whenever the upstream default moves.
+ *
+ * Choose this carefully: changing it invalidates every existing cache and
+ * forces a fresh download on every developer machine. Far quicker to avoid
+ * the download altogether by setting MONGO_TEST_URI — any MongoDB will do,
+ * including a scratch database on the Atlas cluster you already have, since
+ * the suite confines itself to a database called `examroute-test`.
+ */
+process.env.MONGOMS_VERSION = process.env.MONGOMS_VERSION ?? '7.0.24';
 
 // The first run on a new machine downloads the server, which takes longer
 // than starting an already-cached one.
