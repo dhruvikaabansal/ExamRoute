@@ -105,6 +105,30 @@ Two details worth volunteering:
 
 ---
 
+## 6c. The two advisories I chose not to fix
+
+If anyone runs `npm audit` on the repo — and an interviewer might — two
+moderate react-router advisories are still open. Have the answer ready,
+because "I read them" beats "I ran audit fix" every time.
+
+> `npm audit` flags two react-router issues. Clearing them means jumping to
+> v7, a breaking major, so I read them instead of reflexively upgrading. One
+> is an open redirect through a backslash in `<Link>`/`useNavigate` — it needs
+> a user-controlled destination, and every navigation target in this app is a
+> literal or an id I generated. The other is constructor injection during SSR
+> hydration, and this is a pure client-side SPA with no SSR at all. Neither is
+> reachable here. The high-severity one, nanoid, *was* reachable in principle,
+> so I fixed that one.
+
+> If this were handling real money I'd schedule the v7 migration anyway,
+> because "not exploitable today" is a statement about today's code.
+
+The point being made: you can tell the difference between a vulnerability and
+a vulnerability *in your application*, and you didn't destabilise a working
+project the day before a demo to make a scanner quiet.
+
+---
+
 ## 7. Security decisions, briefly
 
 Have one sentence ready for each:
