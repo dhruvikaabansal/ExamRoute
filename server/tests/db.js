@@ -1,39 +1,61 @@
 import './env.js';
-import { inject, afterEach, afterAll } from 'vitest';
+import { inject } from 'vitest';
 import mongoose from 'mongoose';
 
 /**
- * Connects this test file to the MongoDB started once in `globalSetup.js`.
+ * Connection helpers for the integration suite.
  *
- * The integration suite runs against a real database rather than a mock,
- * because much of what it covers *is* database behaviour: the `2dsphere`
- * index behind `$near` pickup-stop assignment, the unique compound index that
- * prevents double booking, and Mongoose's own casting. A stubbed driver would
- * agree with whatever the code expected and prove nothing.
+ * These are deliberately plain functions with no lifecycle hooks. Hooks
+ * registered at module scope in a shared module graph — which is what
+ * `isolate: false` gives us — attach to whichever test file imported this
+ * module first, and to no other. That produced a suite where the first file
+ * disconnected Mongoose on its way out and every later file failed with
+ * "Client must be connected", while also silently skipping the between-test
+ * cleanup those files were relying on.
  *
- * `dbReady` is false when no database could be started; specs that need one
- * are then skipped with `describe.skipIf(!dbReady)` instead of failing.
+ * The hooks now live in `setup.js`, which Vitest runs once per test file, so
+ * every file gets its own connect, cleanup and teardown.
  */
 
 const uri = inject('mongoUri');
 
-export let dbReady = false;
+/**
+ * Whether an integration database is available.
+ *
+ * Synchronous on purpose: `describe.skipIf(!dbReady)` needs an answer while
+ * the file is being collected, long before any hook has run.
+ */
+export const dbReady = Boolean(uri);
 
-if (uri) {
-  await mongoose.connect(uri, {
-    dbName: 'examroute-test',
-    serverSelectionTimeoutMS: 8000,
-  });
-  await Promise.all(Object.values(mongoose.models).map((m) => m.syncIndexes()));
-  dbReady = true;
+let indexesSynced = false;
 
-  // Each test starts from an empty database, so ordering never matters.
-  afterEach(async () => {
-    const { collections } = mongoose.connection;
-    await Promise.all(Object.values(collections).map((c) => c.deleteMany({})));
-  });
+export async function connectTestDb() {
+  if (!dbReady) return;
 
-  afterAll(async () => {
-    await mongoose.disconnect();
-  });
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(uri, {
+      // A dedicated database, so pointing MONGO_TEST_URI at a cluster that
+      // also holds real data cannot wipe it.
+      dbName: 'examroute-test',
+      serverSelectionTimeoutMS: 8000,
+    });
+  }
+
+  // The 2dsphere and unique indexes are part of what these tests assert, so
+  // they have to exist before anything runs. Once per process is enough.
+  if (!indexesSynced) {
+    await Promise.all(Object.values(mongoose.models).map((m) => m.syncIndexes()));
+    indexesSynced = true;
+  }
+}
+
+/** Empties every collection, so no test depends on another's leftovers. */
+export async function wipeTestDb() {
+  if (!dbReady || mongoose.connection.readyState !== 1) return;
+  const { collections } = mongoose.connection;
+  await Promise.all(Object.values(collections).map((c) => c.deleteMany({})));
+}
+
+export async function disconnectTestDb() {
+  if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
 }
