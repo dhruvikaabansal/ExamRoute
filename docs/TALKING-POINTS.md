@@ -45,6 +45,47 @@ This is your strongest technical anecdote. Tell it as a *bug you found*, not a f
 
 **Also worth mentioning:** I changed the k-means seeding. It originally seeded centroids from the first *k* points, which is a real problem here because bookings arrive in clumps — the first several students are often from the same town, so you get near-identical starting centroids and a bad local optimum. I switched to farthest-point seeding, which is deterministic, so the same input always produces the same routes. That matters for demos and for debugging.
 
+### The follow-up: k-means was optimising the wrong shape
+
+This is the stronger half of the story, and almost nobody expects it.
+
+> Once I could see real routes on real data, the capacity fix wasn't the
+> problem any more — the *shape* was. k-means minimises distance to a
+> centroid, so it likes round blobs. But think about what a good bus route
+> actually looks like: students strung out along one highway, all the way from
+> a far town into the city. That's a corridor. In k-means terms it's a
+> high-variance cluster — precisely the thing it's built to avoid. So k-means
+> was systematically preferring the wrong grouping.
+
+> The classic construction heuristic for one depot and many customers is the
+> **sweep**: sort everyone by the angle they sit at around the depot, walk the
+> circle, and start a new vehicle whenever the next customer won't fit. Every
+> bus ends up serving a wedge radiating out from the exam centre — which is
+> the shape a feeder route has. Where you start the sweep changes the answer,
+> so I try every starting angle.
+
+> The part I'm most pleased with is that **I didn't pick one**. Neither wins
+> everywhere. So I build both, score them on what they'd actually cost to
+> drive, and use the cheaper one. Bus count first, kilometres second — no
+> amount of shaved distance pays for an extra driver and vehicle. On cohorts
+> from 60 to 400 students it comes out 10–18% shorter than k-means alone, and
+> by construction it can never be worse, because k-means is one of the
+> candidates.
+
+Three details worth volunteering:
+
+1. *Scoring is deliberately cheaper than the real routing.* Choosing between
+   clusterings only needs the ranking to be right, not each candidate's exact
+   optimum. Running the full local search on every candidate took 4.5 seconds
+   at 200 students; the cheaper score is 5× faster and ranks them the same.
+2. *Building the comparison exposed a bug in the comparison.* My first scoring
+   pass was order-sensitive — feeding the same cluster in a different order
+   gave a different length, because local search converges to different local
+   optima from different starts. I was measuring input ordering, not route
+   quality. Canonicalising the starting order fixed it.
+3. *It clusters on pickup stops, not homes.* Twelve students from different
+   villages who all board at one bus stand are one place to visit, not twelve.
+
 **If asked "why not a proper VRP solver?"**
 > Vehicle Routing is NP-hard. But I don't need to solve it from scratch — Directions already solves the sub-problem that matters, ordering five to ten stops, with real road data. Clustering plus delegation gets a correct answer in milliseconds and I can draw it on a whiteboard. If the scale grew to thousands of students per city I'd look at OR-Tools, but building that here would have been complexity I couldn't justify.
 

@@ -152,10 +152,20 @@ For one session, per exam centre:
 
 1. **Cluster** paid students into buses that each fit within seat capacity.
 2. **Snap** each student to a pickup stop, using the same geofenced lookup that ran at booking time.
-3. **Order** the stops by calling Directions with `optimize:true`, which returns the optimal visiting order and per-leg durations.
+3. **Order** the stops. With a Maps key, Directions is called with `optimize:true` — but note that it only reorders the *intermediate* waypoints; origin and destination are fixed. So the origin is chosen deliberately as the stop furthest from the centre, since the bus starts at the far end of the corridor and works inward. Passing whichever stop happened to come first made the result optimal only relative to an arbitrary start. Without a key, the offline path runs nearest-neighbour construction followed by **2-opt and Or-opt** local search: 2-opt reverses a segment to remove crossings, Or-opt lifts a run of one to three stops out and reinserts it elsewhere. They fix different failures, so both run until neither can improve the route.
 4. **Time** the trip: `departure = arrivalTarget − totalTravel`, and each stop's pickup follows from the cumulative leg durations.
 
 Solving Vehicle Routing from scratch is NP-hard. Clustering geographically and delegating stop ordering to Directions is correct, explainable, and more than adequate at this scale.
+
+### Two clustering strategies, chosen by measurement
+
+k-means minimises distance to a centroid, so it favours round blobs. But the best possible bus route is the opposite shape — a corridor of students strung along one highway, which is a *high variance* cluster and exactly what k-means tries to avoid. On the seeded Jaipur cohort it produced routes about 30% longer than necessary.
+
+So the engine also builds a **sweep**: sort every student by the angle at which they sit around the exam centre, walk that circle, and cut a new bus each time the next student would not fit. Each bus serves a wedge radiating outward, which is the shape a feeder route actually has. Where the sweep starts changes the result, so every starting angle is tried.
+
+Neither strategy wins everywhere, so both are built and **scored on what they would cost to drive** — bus count first, kilometres second, because no amount of shaved distance pays for an extra driver and vehicle. The cheaper one is used. On cohorts from 60 to 400 students this is consistently 10–18% shorter than k-means alone, and by construction it can never be worse.
+
+Scoring uses a cheaper local search than the final routes do. Choosing between clusterings only needs the ranking to be right, not each candidate's exact optimum, and running the full search on every candidate took seconds at a few hundred students — far too slow for an admin pressing a button.
 
 ### Capacity-aware clustering
 

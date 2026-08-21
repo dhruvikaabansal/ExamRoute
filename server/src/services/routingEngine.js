@@ -112,7 +112,9 @@ export async function runRoutingForSession(sessionId) {
     });
     if (routable.length === 0) continue;
 
-    const clusters = clusterByCapacity(routable, capacity);
+    // The centre is passed so clustering can also try the sweep strategy and
+    // pick whichever actually drives shorter — see services/clustering.js.
+    const clusters = clusterByCapacity(routable, capacity, center.location.coordinates);
 
     let busIndex = 1;
     for (const clusterBookings of clusters) {
