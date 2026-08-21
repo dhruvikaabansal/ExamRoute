@@ -216,6 +216,13 @@ export default function Admin() {
                 </li>
               ))}
             </ol>
+            {/*
+              The route listed the pickups and simply stopped, so where the bus
+              was actually going was never stated — you had to already know.
+            */}
+            <p className="mt-1 text-sm font-medium text-green-700">
+              ⇢ {bus.center?.name || 'Exam centre'} — arrives {fmtShort(bus.arrivalTime)}
+            </p>
 
             <div className="mt-3">
               <MapView

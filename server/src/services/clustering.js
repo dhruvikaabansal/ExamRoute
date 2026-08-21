@@ -139,8 +139,43 @@ function bearingFrom(center, point) {
  * starting angle and the caller scores the results.
  */
 export function sweepCandidates(bookings, capacity, center) {
-  const byAngle = [...bookings]
-    .map((b) => ({ booking: b, angle: bearingFrom(center, pointOf(b)) }))
+  /**
+   * Students who live at the exam centre have no meaningful angle.
+   *
+   * A bearing is only informative once you are some distance out. In the
+   * seeded Jaipur cohort, 22 of 59 seats belong to students living in Jaipur
+   * itself — their bearings are essentially random noise, they scattered
+   * across every wedge, and the capacity cuts landed in the wrong places. The
+   * visible result was Alwar and Sikar, which lie in opposite directions,
+   * sharing a bus.
+   *
+   * They are also the students it matters least about: every bus finishes at
+   * the exam centre, so collecting someone who already lives there costs
+   * almost nothing whichever bus does it. So they sit out the sweep and are
+   * placed afterwards, into whichever bus has room.
+   *
+   * The threshold is relative — a tenth of the way out to the furthest
+   * student — rather than a fixed number of kilometres, so it means the same
+   * thing for a city cohort and a cohort spread across the state.
+   */
+  const measured = bookings.map((b) => ({
+    booking: b,
+    point: pointOf(b),
+    km: haversineKm(pointOf(b), center),
+  }));
+
+  const furthestKm = measured.reduce((max, m) => Math.max(max, m.km), 0);
+  const fillerLimit = furthestKm * 0.1;
+
+  const fillers = measured.filter((m) => m.km <= fillerLimit).map((m) => m.booking);
+  const outer = measured.filter((m) => m.km > fillerLimit);
+
+  // Everybody lives at the centre: there is no angle to sweep by, so just
+  // fill buses to capacity.
+  if (outer.length === 0) return [chunkToCapacity(fillers, capacity)];
+
+  const byAngle = outer
+    .map((m) => ({ booking: m.booking, angle: bearingFrom(center, m.point) }))
     .sort((a, b) => a.angle - b.angle);
 
   const n = byAngle.length;
@@ -149,29 +184,202 @@ export function sweepCandidates(bookings, capacity, center) {
   const step = Math.max(1, Math.ceil(n / 64));
   for (let i = 0; i < n; i += step) starts.add(i);
 
+  // How many buses the cohort needs at all. Everyone counts, fillers included.
+  const busesNeeded = Math.max(1, Math.ceil(seatsOf(bookings) / capacity));
+
   const candidates = [];
   for (const start of starts) {
-    const clusters = [];
-    let current = [];
-    let seats = 0;
-
-    for (let i = 0; i < n; i++) {
-      const { booking } = byAngle[(start + i) % n];
-      const need = booking.seats || 1;
-      if (seats + need > capacity && current.length) {
-        clusters.push(current);
-        current = [];
-        seats = 0;
-      }
-      current.push(booking);
-      seats += need;
-    }
-    if (current.length) clusters.push(current);
-
-    candidates.push(clusters);
+    // Two ways to cut the same circle, because they fail differently.
+    //
+    // Filling each bus before starting the next is the textbook sweep, and it
+    // is right when capacity is the binding constraint. But once the fillers
+    // are set aside, the outer students often fit on fewer buses than the
+    // cohort actually needs — and packing them onto one bus produces a single
+    // enormous loop while another bus does almost nothing. On the seeded
+    // Jaipur cohort that was Sikar, Alwar and Dausa on one vehicle.
+    //
+    // So also cut the circle into exactly as many wedges as there are buses,
+    // balanced by seats, which spreads the outer towns by direction. Both are
+    // scored; whichever drives shorter wins.
+    candidates.push(placeFillers(cutWhenFull(byAngle, start, capacity), fillers, capacity));
+    candidates.push(
+      placeFillers(cutIntoWedges(byAngle, start, busesNeeded, capacity), fillers, capacity)
+    );
   }
 
+  // And one more, which needs no starting angle at all.
+  candidates.push(
+    placeFillers(cutAtLargestGaps(byAngle, busesNeeded), fillers, capacity)
+  );
+
   return candidates;
+}
+
+/**
+ * Cut the circle where it is already empty.
+ *
+ * Students are not spread evenly around a centre — they come from towns, so
+ * the angles arrive in tight bunches separated by wide empty arcs. The
+ * natural place to separate one bus from another is those empty arcs, not an
+ * equal share of seats: cutting by share lands in the middle of a town and
+ * splits it across two vehicles, which is how Alwar ended up on both buses.
+ *
+ * Cutting a circle into k arcs takes k cuts, so the k widest gaps are used.
+ * No starting angle is involved, which is the point — the data decides where
+ * the boundaries are.
+ */
+function cutAtLargestGaps(byAngle, k) {
+  const n = byAngle.length;
+  if (n === 0) return [];
+  if (k <= 1 || n <= k) return byAngle.map((x) => [x.booking]).slice(0, Math.max(1, n));
+
+  const TWO_PI = Math.PI * 2;
+  const gaps = byAngle.map((entry, i) => {
+    const next = byAngle[(i + 1) % n];
+    let gap = next.angle - entry.angle;
+    if (gap < 0) gap += TWO_PI; // the wrap-around gap
+    return { after: i, gap };
+  });
+
+  const cutAfter = new Set(
+    [...gaps]
+      .sort((a, b) => b.gap - a.gap)
+      .slice(0, k)
+      .map((g) => g.after)
+  );
+
+  const clusters = [];
+  let current = [];
+  for (let i = 0; i < n; i++) {
+    current.push(byAngle[i].booking);
+    if (cutAfter.has(i)) {
+      clusters.push(current);
+      current = [];
+    }
+  }
+  // Anything after the final cut belongs with the arc that wraps to the front.
+  if (current.length) {
+    if (clusters.length) clusters[0] = [...current, ...clusters[0]];
+    else clusters.push(current);
+  }
+
+  return clusters.filter((c) => c.length > 0);
+}
+
+/** Classic sweep: fill a bus, then start the next. */
+function cutWhenFull(byAngle, start, capacity) {
+  const n = byAngle.length;
+  const clusters = [];
+  let current = [];
+  let seats = 0;
+
+  for (let i = 0; i < n; i++) {
+    const { booking } = byAngle[(start + i) % n];
+    const need = booking.seats || 1;
+    if (seats + need > capacity && current.length) {
+      clusters.push(current);
+      current = [];
+      seats = 0;
+    }
+    current.push(booking);
+    seats += need;
+  }
+  if (current.length) clusters.push(current);
+  return clusters;
+}
+
+/**
+ * Cut the circle into exactly `k` wedges of roughly equal seat load.
+ *
+ * Used when the bus count is already decided by the whole cohort, so the aim
+ * is to spread the outlying towns across the buses that will run anyway
+ * rather than to minimise how many wedges the outer students alone occupy.
+ */
+function cutIntoWedges(byAngle, start, k, capacity) {
+  const n = byAngle.length;
+  const totalSeats = byAngle.reduce((sum, x) => sum + (x.booking.seats || 1), 0);
+  const share = totalSeats / k;
+
+  const clusters = [];
+  let current = [];
+  let seats = 0;
+
+  for (let i = 0; i < n; i++) {
+    const { booking } = byAngle[(start + i) % n];
+    const need = booking.seats || 1;
+    const groupsLeft = k - clusters.length;
+    const studentsLeft = n - i;
+
+    // Close this wedge once it has taken its share — but never so eagerly
+    // that the remaining wedges would have nobody left to put in them.
+    const takenShare = seats >= share;
+    const wouldOverfill = seats + need > capacity;
+    if (
+      current.length &&
+      groupsLeft > 1 &&
+      (takenShare || wouldOverfill) &&
+      studentsLeft >= groupsLeft
+    ) {
+      clusters.push(current);
+      current = [];
+      seats = 0;
+    }
+
+    current.push(booking);
+    seats += need;
+  }
+  if (current.length) clusters.push(current);
+  return clusters;
+}
+
+/** Splits a list into capacity-sized groups, order preserved. */
+function chunkToCapacity(bookings, capacity) {
+  const clusters = [];
+  let current = [];
+  let seats = 0;
+  for (const b of bookings) {
+    const need = b.seats || 1;
+    if (seats + need > capacity && current.length) {
+      clusters.push(current);
+      current = [];
+      seats = 0;
+    }
+    current.push(b);
+    seats += need;
+  }
+  if (current.length) clusters.push(current);
+  return clusters;
+}
+
+/**
+ * Puts the centre-dwelling students onto buses once the shape is decided.
+ *
+ * Each one goes to the bus with the most room left, which keeps the buses
+ * balanced and avoids opening another vehicle while seats sit empty
+ * elsewhere. Any bus is as good as any other for them — they board at the
+ * end, metres from where the journey finishes.
+ */
+function placeFillers(clusters, fillers, capacity) {
+  const result = clusters.map((c) => [...c]);
+
+  for (const filler of fillers) {
+    const need = filler.seats || 1;
+    let bestIndex = -1;
+    let mostRoom = -1;
+
+    for (let i = 0; i < result.length; i++) {
+      const room = capacity - seatsOf(result[i]);
+      if (room >= need && room > mostRoom) {
+        mostRoom = room;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex === -1) result.push([filler]);
+    else result[bestIndex].push(filler);
+  }
+
+  return result;
 }
 
 /**

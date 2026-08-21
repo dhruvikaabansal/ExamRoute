@@ -120,6 +120,11 @@ export async function createBooking(req, res) {
       : undefined,
     stopDistanceKm: assigned?.distanceKm,
     stopEtaMin: assigned?.etaMin,
+    // Whether the student actually falls inside a stop's catchment zone, or
+    // whether we fell back to "nearest anywhere". The fallback was computed
+    // and thrown away, so a student 60 km from their nearest stop was shown
+    // the same confident message as one living 2 km away.
+    stopInsideZone: assigned?.insideZone ?? false,
   });
 
   res.status(201).json(booking);

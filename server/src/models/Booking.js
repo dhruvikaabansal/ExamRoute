@@ -65,6 +65,16 @@ const bookingSchema = new mongoose.Schema(
     assignedStop: { name: String, coordinates: [Number] },
     stopDistanceKm: { type: Number }, // home -> stop
     stopEtaMin: { type: Number }, // home -> stop travel minutes
+    /**
+     * True when the home is inside a stop's catchment zone.
+     *
+     * False means no zone covered them and we fell back to the nearest stop
+     * anywhere, which can be a long way off. That distinction has to reach
+     * the student: getting themselves to a pickup point 60 km away is a very
+     * different proposition from one down the road, and the app should say so
+     * rather than presenting both with equal confidence.
+     */
+    stopInsideZone: { type: Boolean, default: true },
 
     // filled by the routing engine
     bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },

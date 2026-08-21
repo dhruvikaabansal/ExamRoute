@@ -123,10 +123,25 @@ export default function MyBookings() {
               )}
 
               {b.assignedStop?.name && (
-                <p className="text-sm text-slate-600 mt-1">
-                  🚏 Pickup stop: <b>{b.assignedStop.name}</b>
-                  {b.stopDistanceKm != null && ` (~${b.stopEtaMin} min from home)`}
-                </p>
+                <>
+                  <p className="text-sm text-slate-600 mt-1">
+                    🚏 Pickup stop: <b>{b.assignedStop.name}</b>
+                    {b.stopDistanceKm != null &&
+                      ` — ${b.stopDistanceKm} km from your home, about ${b.stopEtaMin} min`}
+                  </p>
+                  {/*
+                    Say so when no catchment zone covered them. Reaching a stop
+                    60 km away is a different proposition from one down the
+                    road, and the student needs to plan for it.
+                  */}
+                  {b.stopInsideZone === false && (
+                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1">
+                      Your home is outside every pickup zone, so this is simply the
+                      nearest stop we have. You will need to get yourself there —
+                      please plan for the {b.stopEtaMin} minutes.
+                    </p>
+                  )}
+                </>
               )}
 
               {b.status === 'assigned' && b.bus && (
