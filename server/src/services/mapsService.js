@@ -15,11 +15,85 @@ export function haversineKm([lng1, lat1], [lng2, lat2]) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/**
+ * Average speed for a journey of a given length.
+ *
+ * A single flat average is wrong at both ends: 30 km/h makes an inter-city
+ * highway run look absurdly slow, and 60 km/h pretends you cross a city
+ * centre at highway speed. Rajasthan journeys here span 2 km to 300 km, so
+ * the estimate scales with the distance being covered.
+ *
+ * These are estimates for the offline fallback. With a Maps key the real
+ * Directions durations are used instead and this is never consulted.
+ */
+export function averageSpeedKmh(km) {
+  if (km <= 5) return 20; // dense town traffic
+  if (km <= 30) return 35; // district roads
+  if (km <= 100) return 50; // state highways
+  return 60; // national highways
+}
+
 // Estimated travel minutes between two [lng, lat] points.
-// Mock mode assumes ~30 km/h in-town average; real mode would use Distance Matrix.
 export function travelMinutes(from, to) {
   const km = haversineKm(from, to);
-  return Math.max(1, Math.round((km / 30) * 60));
+  return Math.max(1, Math.round((km / averageSpeedKmh(km)) * 60));
+}
+
+/** Total distance of an open route that visits `order` then ends at `destination`. */
+export function tourLengthKm(order, destination) {
+  let km = 0;
+  for (let i = 0; i < order.length - 1; i++)
+    km += haversineKm(order[i].coordinates, order[i + 1].coordinates);
+  if (order.length) km += haversineKm(order[order.length - 1].coordinates, destination);
+  return km;
+}
+
+/**
+ * 2-opt local search over the pickup order.
+ *
+ * Nearest-neighbour alone produced routes that drove past the exam centre to
+ * collect a further stop and doubled back — on real data, a Jaipur student
+ * boarded at 04:11 for a 07:00 arrival twenty minutes away, because the
+ * greedy step optimises the next hop and knows nothing about where the route
+ * has to end.
+ *
+ * 2-opt repeatedly reverses any segment of the route that makes the whole
+ * journey shorter, measuring the *complete* path including the final leg to
+ * the centre. That single change is what removes the doubling back.
+ *
+ * Reversing a prefix is allowed because the bus has no depot — it may start
+ * at whichever stop is best. Every accepted move strictly shortens the tour,
+ * so the loop cannot cycle; the pass cap is belt and braces against
+ * floating-point ties.
+ */
+export function twoOptImprove(order, destination) {
+  let best = [...order];
+  let bestKm = tourLengthKm(best, destination);
+
+  for (let pass = 0; pass < 50; pass++) {
+    let improved = false;
+
+    for (let i = 0; i < best.length - 1; i++) {
+      for (let j = i + 1; j < best.length; j++) {
+        const candidate = [
+          ...best.slice(0, i),
+          ...best.slice(i, j + 1).reverse(),
+          ...best.slice(j + 1),
+        ];
+        const km = tourLengthKm(candidate, destination);
+        // A real improvement, not a rounding artefact.
+        if (km < bestKm - 1e-9) {
+          best = candidate;
+          bestKm = km;
+          improved = true;
+        }
+      }
+    }
+
+    if (!improved) break;
+  }
+
+  return best;
 }
 
 /**
@@ -75,8 +149,18 @@ export async function optimizeRoute(stops, destination) {
   }
 }
 
-function mockOptimize(stops, destination) {
-  // nearest-neighbour ordering starting from the stop furthest from center
+/**
+ * Offline stop ordering: nearest-neighbour for a sane starting shape, then
+ * 2-opt to remove the crossings and doubling-back that greedy construction
+ * always leaves behind.
+ *
+ * This is the same two-stage idea as the clustering service — build something
+ * reasonable, then repair what the construction step cannot see. It is not
+ * optimal, and it does not need to be: with a Maps key, Directions solves this
+ * on real roads. This exists so the app is honest and usable without one.
+ */
+export function mockOptimize(stops, destination) {
+  // Start from the stop furthest from the centre: the bus works its way in.
   const remaining = [...stops];
   remaining.sort(
     (a, b) =>
@@ -84,22 +168,23 @@ function mockOptimize(stops, destination) {
       haversineKm(a.coordinates, destination)
   );
 
-  const order = [remaining.shift()];
+  const greedy = [remaining.shift()];
   while (remaining.length) {
-    const last = order[order.length - 1].coordinates;
+    const last = greedy[greedy.length - 1].coordinates;
     remaining.sort(
       (a, b) => haversineKm(a.coordinates, last) - haversineKm(b.coordinates, last)
     );
-    order.push(remaining.shift());
+    greedy.push(remaining.shift());
   }
 
-  const AVG_KMH = 40;
+  const order = twoOptImprove(greedy, destination);
+
   const legsMin = [];
   for (let i = 0; i < order.length; i++) {
     const from = order[i].coordinates;
     const to = i + 1 < order.length ? order[i + 1].coordinates : destination;
     const km = haversineKm(from, to);
-    legsMin.push(Math.round((km / AVG_KMH) * 60));
+    legsMin.push(Math.max(1, Math.round((km / averageSpeedKmh(km)) * 60)));
   }
   const totalMin = legsMin.reduce((a, b) => a + b, 0);
   return { order, legsMin, totalMin };

@@ -4,6 +4,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { payBooking } from '../lib/pay';
 import LocationPicker from '../components/LocationPicker';
+import AddressSearch, { reverseGeocode } from '../components/AddressSearch';
 import { fmtDate, fmtTime } from '../lib/format';
 
 // A few Rajasthan home presets so the demo has sensible distances
@@ -47,9 +48,26 @@ export default function BookExam() {
     });
   }, [examId]);
 
+  /**
+   * The pin is what the fare is computed from, so whenever it moves we look
+   * up the real address and rewrite the text to match. Letting the two
+   * disagree would mean showing a student one address and charging them for
+   * the distance to another.
+   */
+  async function pinMoved(lat, lng) {
+    setCoords({ lat, lng });
+    setQuote(null);
+    try {
+      const found = await reverseGeocode(lat, lng);
+      if (found) setAddress(found);
+    } catch {
+      // Non-fatal: the coordinates are what get sent.
+    }
+  }
+
   function useMyLocation() {
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => pinMoved(pos.coords.latitude, pos.coords.longitude),
       () => alert('Could not get location. Enter it manually.')
     );
   }
@@ -153,15 +171,21 @@ export default function BookExam() {
       </select>
 
       <label className="block text-sm font-medium">Your home location</label>
-      <p className="text-xs text-slate-400 mb-1">Tap on the map to drop your home pin.</p>
-      <LocationPicker
-        lat={coords.lat}
-        lng={coords.lng}
-        onChange={(lat, lng) => {
+      <p className="text-xs text-slate-400 mb-1">
+        Search your address, or tap the map to drop the pin. Your fare is calculated
+        from this point, so it is worth getting right.
+      </p>
+      <AddressSearch
+        value={address}
+        onChange={setAddress}
+        onPick={(lat, lng) => {
           setCoords({ lat, lng });
           setQuote(null);
         }}
       />
+      <div className="mt-2">
+        <LocationPicker lat={coords.lat} lng={coords.lng} onChange={pinMoved} />
+      </div>
       <div className="flex flex-wrap items-center gap-2 mt-2">
         <button onClick={useMyLocation} className="text-sm text-brand hover:underline">
           📍 Use my current location
@@ -181,12 +205,6 @@ export default function BookExam() {
           </button>
         ))}
       </div>
-      <input
-        className="border rounded p-2 w-full mt-3"
-        placeholder="Address (optional)"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-      />
 
       <button
         onClick={getQuote}

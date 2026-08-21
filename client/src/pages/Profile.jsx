@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import LocationPicker from '../components/LocationPicker';
+import AddressSearch, { reverseGeocode } from '../components/AddressSearch';
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -18,9 +19,25 @@ export default function Profile() {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
+  /**
+   * The pin is the source of truth — fare and pickup stop are both derived
+   * from it — so whenever it moves we look up what is actually there and
+   * rewrite the address to match. Otherwise the two drift apart and the text
+   * quietly describes somewhere the student is not.
+   */
+  async function pinMoved(lat, lng) {
+    setCoords({ lat, lng });
+    try {
+      const found = await reverseGeocode(lat, lng);
+      if (found) setAddress(found);
+    } catch {
+      // Non-fatal: the coordinates are what get saved.
+    }
+  }
+
   function useMyLocation() {
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => pinMoved(pos.coords.latitude, pos.coords.longitude),
       () => alert('Could not get location. Enter it manually.')
     );
   }
@@ -76,21 +93,25 @@ export default function Profile() {
         </div>
         <div>
           <label className="block text-sm font-medium">Home location</label>
-          <p className="text-xs text-slate-400 mb-1">Tap on the map to drop your home pin.</p>
-          <LocationPicker
-            lat={coords.lat}
-            lng={coords.lng}
-            onChange={(lat, lng) => setCoords({ lat, lng })}
+          <p className="text-xs text-slate-400 mb-1">
+            Search your address, or tap the map to drop the pin. The two stay in sync.
+          </p>
+          <AddressSearch
+            value={address}
+            onChange={setAddress}
+            onPick={(lat, lng) => setCoords({ lat, lng })}
           />
+          <div className="mt-2">
+            <LocationPicker lat={coords.lat} lng={coords.lng} onChange={pinMoved} />
+          </div>
           <button type="button" onClick={useMyLocation} className="text-sm text-brand mt-2 hover:underline">
             📍 Use my current location
           </button>
-          <input
-            className="border rounded p-2 w-full mt-2"
-            placeholder="Address (optional)"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
+          {coords.lat !== '' && coords.lng !== '' && (
+            <p className="text-xs text-slate-400 mt-1">
+              Pin: {Number(coords.lat).toFixed(4)}, {Number(coords.lng).toFixed(4)}
+            </p>
+          )}
         </div>
 
         {msg && <p className="text-sm text-green-700">{msg}</p>}
