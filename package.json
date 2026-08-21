@@ -10,6 +10,8 @@
     "dev:client": "npm --prefix client run dev",
     "seed": "npm --prefix server run seed",
     "seed:demo": "npm --prefix server run seed:demo",
+    "demo:reset": "npm run seed && npm run seed:demo",
+    "test": "npm --prefix server test",
     "build": "npm --prefix client run build"
   },
   "devDependencies": {
