@@ -62,6 +62,37 @@ export function assertNonEmptyString(value, field, { maxLength = 120 } = {}) {
   return s;
 }
 
+/**
+ * The exam application / roll number, required on every booking.
+ *
+ * This is not paperwork. Boarding works by a conductor holding the passenger's
+ * admit card next to the name and roll number on their screen — that human
+ * check is the entire identity story, since no third party can digitally
+ * confirm someone is a real candidate. A paid booking with no roll number
+ * cannot be verified at the door, so it must not be possible to create one.
+ *
+ * It stays per-booking rather than per-profile because the number is issued
+ * per exam: a student's JEE application number is not their NEET one.
+ *
+ * Format is deliberately loose. NTA numbering has changed shape over the
+ * years and differs between exams, so this checks it is plausible — digits
+ * and letters, sensible length — rather than pretending to know the scheme.
+ */
+export function assertRollNumber(value) {
+  const roll = String(value ?? '').trim().toUpperCase();
+  if (!roll)
+    throw ApiError.badRequest(
+      'Your exam application / roll number is required — the conductor checks it against your admit card at boarding'
+    );
+  if (roll.length < 6 || roll.length > 24)
+    throw ApiError.badRequest('Application / roll number must be between 6 and 24 characters');
+  if (!/^[A-Z0-9-]+$/.test(roll))
+    throw ApiError.badRequest(
+      'Application / roll number can only contain letters, numbers and hyphens'
+    );
+  return roll;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function assertEmail(value) {

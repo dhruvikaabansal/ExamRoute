@@ -27,6 +27,9 @@ export default function BookExam() {
   const [sessionId, setSessionId] = useState('');
   const [centerId, setCenterId] = useState('');
   const [rollNumber, setRollNumber] = useState('');
+  // Only complain once they have actually left the field — flagging an empty
+  // input as invalid before it has been touched is nagging, not helping.
+  const [rollTouched, setRollTouched] = useState(false);
   const [companions, setCompanions] = useState(0);
   const [coords, setCoords] = useState({
     lat: user?.homeLocation?.coordinates?.[1] || '',
@@ -82,7 +85,28 @@ export default function BookExam() {
     setQuote(res.data);
   }
 
+  /**
+   * The same rule the server enforces, checked before the request.
+   *
+   * Not a substitute for the server check — the client is not trusted — but
+   * being told your roll number is missing after a payment attempt is a poor
+   * way to learn it.
+   */
+  function rollNumberProblem() {
+    const roll = rollNumber.trim().toUpperCase();
+    if (!roll) return 'Enter your exam application / roll number.';
+    if (roll.length < 6 || roll.length > 24)
+      return 'Application / roll number should be 6 to 24 characters.';
+    if (!/^[A-Z0-9-]+$/.test(roll))
+      return 'Application / roll number can only contain letters, numbers and hyphens.';
+    return '';
+  }
+
   async function bookAndPay() {
+    const problem = rollNumberProblem();
+    if (problem) return alert(problem);
+    if (!coords.lat || !coords.lng) return alert('Drop your home pin on the map first.');
+
     setBusy(true);
     try {
       const bookingRes = await api.post('/bookings', {
@@ -146,14 +170,24 @@ export default function BookExam() {
       </select>
 
       <label className="block text-sm font-medium">
-        Your roll / application number for this exam
+        Your roll / application number for this exam <span className="text-red-600">*</span>
       </label>
+      <p className="text-xs text-slate-400 mt-0.5">
+        Required. The conductor checks this against your admit card when you board, so it
+        has to match. Each exam issues its own number.
+      </p>
       <input
-        className="w-full border rounded p-2 mt-1 mb-4"
+        className={`w-full border rounded p-2 mt-1 ${
+          rollTouched && rollNumberProblem() ? 'border-red-400 mb-1' : 'mb-4'
+        }`}
         placeholder="e.g. 2601000123 (from your admit card)"
         value={rollNumber}
-        onChange={(e) => setRollNumber(e.target.value)}
+        onBlur={() => setRollTouched(true)}
+        onChange={(e) => setRollNumber(e.target.value.toUpperCase())}
       />
+      {rollTouched && rollNumberProblem() && (
+        <p className="text-xs text-red-600 mb-4">{rollNumberProblem()}</p>
+      )}
 
       <label className="block text-sm font-medium">Seats for parents / guardians</label>
       <select

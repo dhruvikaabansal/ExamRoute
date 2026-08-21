@@ -252,6 +252,50 @@ describe.skipIf(!dbReady)('booking rules', () => {
     expect(second.status).toBe(409);
   });
 
+  /**
+   * Boarding is a conductor comparing an admit card to the roll number on
+   * screen. A paid booking with no number cannot be verified at the door, so
+   * it must not be creatable — this used to be an optional field.
+   */
+  it('refuses a booking with no application number', async () => {
+    const { exam, session, center, user } = await setup();
+    const res = await asUser(
+      request(app)
+        .post('/api/bookings')
+        .send(bookingBody(exam, session, center, { rollNumber: '' })),
+      user
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/roll number/i);
+    expect(await Booking.countDocuments()).toBe(0);
+  });
+
+  it('refuses an implausible application number', async () => {
+    const { exam, session, center, user } = await setup();
+    for (const rollNumber of ['abc', 'x'.repeat(30), 'has spaces', '12/34/56']) {
+      const res = await asUser(
+        request(app)
+          .post('/api/bookings')
+          .send(bookingBody(exam, session, center, { rollNumber })),
+        user
+      );
+      expect(res.status).toBe(400);
+    }
+    expect(await Booking.countDocuments()).toBe(0);
+  });
+
+  it('normalises the application number so boarding compares like with like', async () => {
+    const { exam, session, center, user } = await setup();
+    const res = await asUser(
+      request(app)
+        .post('/api/bookings')
+        .send(bookingBody(exam, session, center, { rollNumber: '  rj26-000123  ' })),
+      user
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.rollNumber).toBe('RJ26-000123');
+  });
+
   it('clamps companions to the supported range', async () => {
     const { exam, session, center, user } = await setup();
     const res = await asUser(

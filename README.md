@@ -38,7 +38,7 @@ Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments
 
 **Routing engine.** Clusters paid students into buses that fit within seat capacity, orders each bus's stops via Directions optimised waypoints, and works backwards from the exam's reporting time to produce a departure time and a per-stop pickup schedule. Overnight departures from far towns are detected and labelled.
 
-**QR e-ticket and boarding.** Every paid booking gets a QR ticket. A conductor scans it, sees the passenger and roll number, checks the admit card, and marks them boarded.
+**QR e-ticket and boarding.** Every paid booking gets a QR ticket. A conductor scans it, sees the passenger and roll number, checks the admit card, and marks them boarded. The application / roll number is **required** on every booking and validated server-side — boarding is a human comparing that number to an admit card, so a paid seat nobody can verify at the door is worse than no seat. It lives on the booking rather than the profile because it is issued per exam: a JEE application number is not a NEET one.
 
 **Live bus tracking.** The driver opens a link that shares the bus's GPS; students watch it move on a live map. The driver needs no account — see [the security model](#security-model).
 

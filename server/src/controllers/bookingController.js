@@ -13,6 +13,7 @@ import {
   assertCoordinates,
   assertObjectId,
   assertCompanions,
+  assertRollNumber,
 } from '../utils/validate.js';
 
 /**
@@ -82,9 +83,7 @@ export async function createBooking(req, res) {
   const coordinates = assertCoordinates(req.body.coordinates);
   const seats = 1 + assertCompanions(req.body.companions);
   const address = req.body.address ? String(req.body.address).slice(0, 200) : undefined;
-  const rollNumber = req.body.rollNumber
-    ? String(req.body.rollNumber).trim().slice(0, 40)
-    : undefined;
+  const rollNumber = assertRollNumber(req.body.rollNumber);
 
   const existing = await Booking.findOne({ user: req.user._id, session: session._id });
   if (existing) throw ApiError.conflict('You already booked this session');

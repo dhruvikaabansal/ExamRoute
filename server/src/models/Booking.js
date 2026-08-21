@@ -7,8 +7,15 @@ const bookingSchema = new mongoose.Schema(
     session: { type: mongoose.Schema.Types.ObjectId, ref: 'ExamSession', required: true },
     center: { type: mongoose.Schema.Types.ObjectId, ref: 'Center', required: true },
 
-    // roll / application number is per-exam, so it lives on the booking
-    rollNumber: { type: String },
+    /**
+     * Roll / application number, per-exam and therefore on the booking rather
+     * than the profile — a student's JEE number is not their NEET number.
+     *
+     * Required, because boarding is a conductor comparing an admit card
+     * against this number on screen. A paid booking nobody can verify at the
+     * door is worse than no booking.
+     */
+    rollNumber: { type: String, required: true, trim: true, uppercase: true },
 
     // where the student is travelling from
     homeLocation: {
