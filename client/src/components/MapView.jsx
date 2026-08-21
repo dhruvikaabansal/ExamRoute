@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-leaflet';
+import { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -13,6 +14,22 @@ const icon = (color) =>
     popupAnchor: [1, -34],
     className: color === 'red' ? 'hue-red' : color === 'green' ? 'hue-green' : '',
   });
+
+/**
+ * The bus gets its own marker rather than a recoloured pin.
+ *
+ * Every marker on the map was the same blue teardrop — the exam centre, each
+ * pickup stop, and the moving bus — because the colour classes referenced
+ * here were never defined in the stylesheet. On a live tracking page, the one
+ * thing that has to be instantly identifiable is the bus.
+ */
+const busIcon = L.divIcon({
+  className: 'bus-marker',
+  html: '<div class="bus-marker-inner">🚌</div>',
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+  popupAnchor: [0, -18],
+});
 
 // coordinates come in as [lng, lat] (GeoJSON); Leaflet wants [lat, lng]
 const toLatLng = (c) => [c[1], c[0]];
@@ -38,6 +55,36 @@ const toLatLng = (c) => [c[1], c[0]];
  */
 const hasPosition = (p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng);
 
+/**
+ * Frames the whole route instead of guessing a zoom level.
+ *
+ * The map used to centre on whichever point happened to be first and sit at a
+ * fixed zoom of 9. On a route from Alwar to Ajmer — 230 km apart — that put
+ * the pickup stop and the moving bus outside the visible area entirely, so a
+ * simulation that was running perfectly well looked like nothing happening.
+ *
+ * Refits only when the route itself changes, keyed on the stops rather than
+ * on every position update: a map that re-zooms every few seconds as the bus
+ * creeps along is worse than one that never moves.
+ */
+function FitBounds({ points, signature }) {
+  const map = useMap();
+  const lastSignature = useRef(null);
+
+  useEffect(() => {
+    if (points.length === 0 || lastSignature.current === signature) return;
+    lastSignature.current = signature;
+
+    if (points.length === 1) {
+      map.setView(points[0], 11);
+      return;
+    }
+    map.fitBounds(L.latLngBounds(points), { padding: [32, 32], maxZoom: 13 });
+  }, [map, signature, points]);
+
+  return null;
+}
+
 export default function MapView({ home, center, stops = [], route = [], bus, geofenceKm = 0, height = 320 }) {
   const livePosition = hasPosition(bus) ? bus : null;
 
@@ -50,6 +97,13 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
   const fallback = [26.9124, 75.7873]; // Jaipur
   const centerPoint = points[0] || fallback;
 
+  // Only the fixed geography, so the bus moving does not retrigger a refit.
+  const signature = JSON.stringify([
+    home,
+    center,
+    stops.map((s) => s?.coordinates),
+  ]);
+
   const routeLine = route
     .filter((s) => Array.isArray(s?.coordinates))
     .map((s) => toLatLng(s.coordinates));
@@ -57,6 +111,10 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
   return (
     <div style={{ height }} className="rounded-lg overflow-hidden border">
       <MapContainer center={centerPoint} zoom={9} style={{ height: '100%', width: '100%' }}>
+        <FitBounds
+          points={points.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]))}
+          signature={signature}
+        />
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -94,8 +152,8 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
         )}
 
         {livePosition && (
-          <Marker position={[livePosition.lat, livePosition.lng]} icon={icon('red')}>
-            <Popup>🚌 Bus (live)</Popup>
+          <Marker position={[livePosition.lat, livePosition.lng]} icon={busIcon} zIndexOffset={1000}>
+            <Popup>🚌 Bus — live position</Popup>
           </Marker>
         )}
       </MapContainer>

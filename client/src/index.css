@@ -5,3 +5,34 @@
 body {
   @apply bg-slate-50 text-slate-800;
 }
+
+/*
+ * Map marker colours.
+ *
+ * MapView asks for red and green pins, but these classes did not exist, so
+ * every marker rendered as the same blue teardrop — the exam centre, the
+ * pickup stops and the bus were indistinguishable. Leaflet's default icon is
+ * blue at roughly 210°, so the rotations below land on red and green.
+ */
+.hue-red {
+  filter: hue-rotate(150deg) saturate(1.8);
+}
+
+.hue-green {
+  filter: hue-rotate(270deg) saturate(1.5);
+}
+
+/* The live bus: an emoji on a disc, so it reads instantly at any zoom. */
+.bus-marker-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  font-size: 20px;
+  line-height: 1;
+  background: #fff;
+  border: 2px solid #2563eb;
+  border-radius: 9999px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
