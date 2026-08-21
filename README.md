@@ -252,6 +252,8 @@ MONGO_TEST_URI="mongodb://127.0.0.1:27017" npm test
 
 If neither is reachable, the integration specs skip with a visible warning rather than failing the build with an infrastructure error that looks like a code defect.
 
+That is the right default on a laptop and the wrong one in CI, where it would produce a green badge for a run in which the entire integration layer never executed. So CI sets `REQUIRE_DB=1`, which turns a missing database from a footnote into a failure. Worth knowing if you ever see the suite pass suspiciously fast: check whether it actually ran, or merely declined to.
+
 Notable cases: buses are never overfilled even when every student lives at the same point; routing is idempotent and leaves no orphaned bookings; a student cannot read another student's booking or ticket; a conductor cannot reach admin routes; a rotated driver link stops working; bookings are refused after the deadline; malformed coordinates are rejected rather than stored as `NaN`; refunds are monotonic in time and never exceed what was paid.
 
 ### CI

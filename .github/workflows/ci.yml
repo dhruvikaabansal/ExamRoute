@@ -30,6 +30,10 @@ jobs:
       # Point the suite at the service container instead of letting
       # mongodb-memory-server download a private binary on every run.
       MONGO_TEST_URI: mongodb://127.0.0.1:27017
+      # Refuse to report success if that database is missing. Skipping is the
+      # right behaviour on a laptop, but here it would mean a green badge for
+      # a run where the entire integration layer never executed.
+      REQUIRE_DB: '1'
       # UTC on purpose. The timezone bug this project fixed only reproduces
       # when the host clock differs from IST, so CI must not run in IST.
       TZ: UTC

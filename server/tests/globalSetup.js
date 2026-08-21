@@ -18,8 +18,13 @@
 // Fail fast rather than retrying a download that will never succeed.
 process.env.MONGOMS_DOWNLOAD_RETRIES = process.env.MONGOMS_DOWNLOAD_RETRIES ?? '0';
 process.env.MONGOMS_DISABLE_POSTINSTALL = '1';
+// Pin the version so every machine downloads and caches the same binary
+// instead of re-fetching 600 MB whenever the default moves.
+process.env.MONGOMS_VERSION = process.env.MONGOMS_VERSION ?? '7.0.14';
 
-const STARTUP_TIMEOUT_MS = Number(process.env.MONGO_TEST_TIMEOUT_MS || 60_000);
+// The first run on a new machine downloads the server, which takes longer
+// than starting an already-cached one.
+const STARTUP_TIMEOUT_MS = Number(process.env.MONGO_TEST_TIMEOUT_MS || 180_000);
 
 let memoryServer = null;
 
@@ -59,6 +64,24 @@ export default async function setup({ provide }) {
       /* nothing to stop */
     }
     memoryServer = null;
+
+    /**
+     * Somewhere it is not acceptable to quietly skip.
+     *
+     * Skipping when no database exists is right on a laptop — an
+     * infrastructure problem should not look like a code defect. But it means
+     * a run can pass having tested almost nothing, and in CI that produces a
+     * green badge for a suite where the entire integration layer never
+     * executed. CI sets REQUIRE_DB=1, so there the absence of a database is
+     * a failure rather than a footnote.
+     */
+    if (process.env.REQUIRE_DB === '1') {
+      throw new Error(
+        `REQUIRE_DB=1 but no MongoDB could be started: ${String(err.message).split('\n')[0]}\n` +
+          'The integration suite is most of this project\'s coverage; refusing to ' +
+          'report success without it.'
+      );
+    }
 
     console.warn(
       `\n⚠️  Integration tests will be SKIPPED — no MongoDB available.\n` +
