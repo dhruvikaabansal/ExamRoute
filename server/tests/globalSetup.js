@@ -15,6 +15,10 @@
  *      build with an infrastructure error that looks like a code defect.
  */
 
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+
 // Fail fast rather than retrying a download that will never succeed.
 process.env.MONGOMS_DOWNLOAD_RETRIES = process.env.MONGOMS_DOWNLOAD_RETRIES ?? '0';
 process.env.MONGOMS_DISABLE_POSTINSTALL = '1';
@@ -44,9 +48,35 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+/**
+ * Read MONGO_TEST_URI out of a .env file if it is not already exported.
+ *
+ * The test environment is built explicitly in `tests/env.js` rather than
+ * loaded from .env — deliberately, so a stray key in a developer's file
+ * cannot change what the suite exercises. The cost is that putting
+ * MONGO_TEST_URI in .env silently did nothing, and the suite went off to
+ * download 600 MB instead.
+ *
+ * This reads that one key, parsed without touching process.env, so pointing
+ * the suite at an existing database works the obvious way while the rest of
+ * the environment stays under the suite's control.
+ */
+function testUriFromEnvFile() {
+  for (const candidate of ['.env', path.join('server', '.env')]) {
+    try {
+      const parsed = dotenv.parse(fs.readFileSync(path.resolve(process.cwd(), candidate)));
+      if (parsed.MONGO_TEST_URI) return parsed.MONGO_TEST_URI;
+    } catch {
+      /* no such file here — try the next one */
+    }
+  }
+  return '';
+}
+
 export default async function setup({ provide }) {
-  if (process.env.MONGO_TEST_URI) {
-    provide('mongoUri', process.env.MONGO_TEST_URI);
+  const configured = process.env.MONGO_TEST_URI || testUriFromEnvFile();
+  if (configured) {
+    provide('mongoUri', configured);
     return;
   }
 
