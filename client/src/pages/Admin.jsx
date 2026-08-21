@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import MapView from '../components/MapView';
+import RoleManager from '../components/RoleManager';
 import { fmtDate, fmtDateTime, fmtShort } from '../lib/format';
 
 /** Copy-to-clipboard with a graceful fallback for non-secure contexts. */
@@ -187,6 +188,20 @@ export default function Admin() {
             <li key={i}>⚠️ {w}</li>
           ))}
         </ul>
+      )}
+
+      <RoleManager />
+
+      {/*
+        An empty list after a run is a real answer, not a blank space — the
+        session simply has no paid bookings yet. Saying so beats leaving the
+        page looking like it failed to load.
+      */}
+      {buses.length === 0 && summary && (
+        <p className="text-sm text-slate-500 bg-white border rounded-lg p-4">
+          No buses for this sitting yet. Routing only picks up bookings that are
+          already paid — this sitting has {summary.paid} of {summary.total}.
+        </p>
       )}
 
       <div className="space-y-4">

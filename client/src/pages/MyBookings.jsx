@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { payBooking } from '../lib/pay';
-import { fmtDateTime, fmtRelative } from '../lib/format';
+import { fmtDate, fmtDateTime, fmtRelative } from '../lib/format';
 
 const statusColor = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -99,8 +99,17 @@ export default function MyBookings() {
                   {b.boarded ? 'boarded ✓' : b.status}
                 </span>
               </div>
+              {/*
+                The date is not optional detail — it is the thing that
+                distinguishes one booking from another. JEE runs three dates
+                with two shifts each, so "Shift 1 (9 AM - 12 PM)" alone made
+                two entirely different sittings render as identical twins.
+              */}
               <p className="text-sm text-slate-500 mt-1">
-                {b.session && `${b.session.shiftLabel} · `}
+                {b.session && (
+                  <b className="text-slate-700">{fmtDate(b.session.examStart)}</b>
+                )}
+                {b.session && ` · ${b.session.shiftLabel} · `}
                 {b.center?.name}, {b.center?.city}
                 {b.rollNumber && ` · Roll ${b.rollNumber}`}
               </p>
