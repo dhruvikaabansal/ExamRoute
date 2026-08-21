@@ -87,7 +87,14 @@ export async function makeExamWithSession({
   return { exam, session };
 }
 
-/** A paid booking, i.e. one the routing engine will pick up. */
+/**
+ * A paid booking, i.e. one the routing engine will pick up.
+ *
+ * A paid booking always carries the payment id that paid for it — every real
+ * path through the app sets one, from mockConfirm or from verifyPayment. The
+ * factory has to do the same, or tests inherit a state the application can
+ * never actually produce: a booking marked `paid` with nothing to refund.
+ */
 export async function makePaidBooking({
   user,
   exam,
@@ -103,6 +110,7 @@ export async function makePaidBooking({
     center.location.coordinates,
     seats
   );
+  const settled = ['paid', 'assigned'].includes(status);
   return Booking.create({
     user: user._id,
     exam: exam._id,
@@ -117,6 +125,8 @@ export async function makePaidBooking({
     subsidyPercent,
     fare,
     status,
+    razorpayPaymentId: settled ? `mock_${crypto.randomBytes(6).toString('hex')}` : undefined,
+    paidAt: settled ? new Date() : undefined,
     ticketToken: crypto.randomBytes(24).toString('hex'),
   });
 }
