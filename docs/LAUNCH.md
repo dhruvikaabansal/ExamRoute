@@ -71,6 +71,13 @@ larger, then trim hard.
 | 0:15–0:40 | Drop a home pin, add a companion, fare appears | "Fare is distance-based — and the subsidy grows the further you travel" |
 | 0:40–0:55 | Pay, confirmation with pickup stop + map | "Nearest pickup stop, geofenced to your area" |
 | 0:55–1:30 | Admin → Run routing engine, buses appear | "55 seats, 40-seat buses — the engine splits them and orders every stop" |
+
+> **Pick the right sitting or nothing appears.** The demo seed puts all ~49
+> paid students on the **first JEE sitting** — Shift 1, 9 AM, the earliest
+> date in the list — travelling to the **Jaipur** centre. Selecting any other
+> exam or shift gives you "No paid bookings to route", which looks like a
+> broken app on camera. Select it once before you start recording.
+
 | 1:30–1:50 | Driver link in a private window, Simulate driving | "The driver needs no account — one link, one bus" |
 | 1:50–2:10 | Student's Track bus page, bus moving | "Students watch it move in real time" |
 | 2:10–2:30 | QR ticket → conductor boards them | "The app verifies the ticket. A human verifies the person." |

@@ -1,5 +1,7 @@
 # ExamRoute 🚌
 
+[![CI](https://github.com/dhruvikaabansal/ExamRoute/actions/workflows/ci.yml/badge.svg)](https://github.com/dhruvikaabansal/ExamRoute/actions/workflows/ci.yml)
+
 A ride-pooling platform for exam-goers. Students from the same area heading to the same exam centre (JEE / NEET / CUET) get pooled onto a shared bus, with an auto-computed pickup route and departure time worked backwards from the exam's gate-close deadline — so nobody misses their exam.
 
 **MERN** · JWT + Google OAuth · Razorpay · Google Maps Directions · Leaflet
