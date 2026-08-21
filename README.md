@@ -193,6 +193,8 @@ Long routes from far towns legitimately depart the previous evening. Those buses
 
 **Why mock modes for maps, payments, and email?** So the project can be cloned and demonstrated with no third-party accounts, and so a lapsed API key cannot ruin a live demo.
 
+**Why does the public demo accept simulated payments in production?** Because a demo nobody can complete a booking on demonstrates nothing — and the alternative, flipping `NODE_ENV` off `production`, would have disabled the JWT length check and the index guard too. Instead the exception is explicit: mock payments are refused in production unless `ALLOW_MOCK_PAYMENTS=true` was deliberately set. That keeps two different questions apart — *is this production?* and *is this deployment allowed to fake payments?* — so that merely forgetting to configure Razorpay can never expose "mark my booking paid for free". The server logs a loud warning when the flag is on, and the frontend shows visitors a banner rather than letting them believe they were charged.
+
 **Why does cancellation succeed even when the refund fails?** Because they are two systems and only one of them is ours. The seat is released and saved first; the gateway call happens after. If Razorpay times out, the worst case is a booking marked `refundStatus: 'failed'` with the amount owed — visible on the admin screen for a human to settle. Doing it the other way round means either holding a seat the student believes they cancelled, or refunding someone who still has a booking. An inconsistency you can see and fix beats one nobody knows about.
 
 ---

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import routes from './routes/index.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
+import { demoMode } from './services/paymentGateway.js';
 
 /**
  * The Express app, built separately from the server that listens on a port.
@@ -37,7 +38,14 @@ export function createApp() {
 
   app.get('/', (req, res) => res.json({ ok: true, service: 'ExamRoute API' }));
   app.get('/api/health', (req, res) =>
-    res.json({ ok: true, uptime: process.uptime(), time: new Date().toISOString() })
+    res.json({
+      ok: true,
+      uptime: process.uptime(),
+      time: new Date().toISOString(),
+      // Advertised so the frontend can tell visitors that payments are
+      // simulated, rather than letting them assume they were charged.
+      demoMode: demoMode(),
+    })
   );
 
   app.use('/api', routes);

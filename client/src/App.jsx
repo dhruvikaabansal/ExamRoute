@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import DemoBanner from './components/DemoBanner';
 import Login from './pages/Login';
 
 /**
@@ -35,6 +36,7 @@ export default function App() {
   const { user } = useAuth();
   return (
     <div className="min-h-screen">
+      <DemoBanner />
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 py-6">
         <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading…</div>}>

@@ -35,10 +35,17 @@ services:
       - key: ADMIN_EMAIL
         sync: false
 
+      # This is a public demo with no Razorpay account behind it, so payments
+      # are simulated. Mock payments are blocked in production unless this is
+      # explicitly set — forgetting to configure Razorpay must not be enough
+      # to expose "mark my booking paid for free". Remove this the moment any
+      # real money is involved.
+      - key: ALLOW_MOCK_PAYMENTS
+        value: true
+
       # Optional integrations. Left unset, the server falls back to
-      # straight-line distances, mock payments (hard-blocked in production),
-      # and console-logged email — so a missing key degrades a feature
-      # instead of breaking the deploy.
+      # straight-line distances and console-logged email — so a missing key
+      # degrades a feature instead of breaking the deploy.
       - key: GOOGLE_MAPS_API_KEY
         sync: false
       - key: GOOGLE_CLIENT_ID

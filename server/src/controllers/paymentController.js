@@ -4,7 +4,11 @@ import { sendMail } from '../services/mailer.js';
 import { ApiError } from '../utils/apiError.js';
 import { assertObjectId } from '../utils/validate.js';
 import { formatIst } from '../utils/time.js';
-import { mockPayments, getInstance } from '../services/paymentGateway.js';
+import {
+  mockPayments,
+  mockPaymentsAllowed,
+  getInstance,
+} from '../services/paymentGateway.js';
 
 /**
  * If Razorpay keys are not configured we run in DEV MOCK MODE: payment is
@@ -72,14 +76,15 @@ export async function createOrder(req, res) {
 }
 
 /**
- * POST /api/payments/mock-confirm  { bookingId }   (DEV ONLY)
+ * POST /api/payments/mock-confirm  { bookingId }   (DEV / EXPLICIT DEMO ONLY)
  *
- * Hard-blocked in production regardless of key configuration. A mis-set
- * environment variable should never be enough to turn "mark my booking paid
- * for free" into a live endpoint.
+ * Blocked in production unless ALLOW_MOCK_PAYMENTS=true was deliberately set.
+ * Merely forgetting to configure Razorpay must never be enough to turn "mark
+ * my booking paid for free" into a live endpoint — that is the difference
+ * between an omission and a decision.
  */
 export async function mockConfirm(req, res) {
-  if (process.env.NODE_ENV === 'production')
+  if (!mockPaymentsAllowed())
     throw ApiError.forbidden('Mock payments are disabled in production');
   if (!mockPayments)
     throw ApiError.badRequest('Mock payments disabled (Razorpay is configured)');

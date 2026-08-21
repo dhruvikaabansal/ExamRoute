@@ -105,6 +105,41 @@ Two details worth volunteering:
 
 ---
 
+## 6bb. The deploy that exposed a design flaw
+
+Only surfaced when the app was first put on a real host — which is the point.
+
+> Mock payments are blocked in production. That's deliberate: forgetting to
+> configure Razorpay shouldn't be enough to expose an endpoint that marks a
+> booking paid for free. Then I deployed the public demo, which *has* no
+> Razorpay account, and discovered nobody could complete a booking. The
+> protection was correct and the demo was broken by it.
+
+> The tempting fix was to stop setting `NODE_ENV=production` on the demo. I
+> didn't, because that one variable also enforces the 32-character minimum on
+> `JWT_SECRET` and disables index reconciliation on boot — I'd have switched
+> off three protections to solve one problem. The real issue was that I'd
+> conflated two questions into one flag: *is this production?* and *is this
+> deployment allowed to fake payments?* Those deserve separate answers. So
+> production now blocks mock payments unless `ALLOW_MOCK_PAYMENTS=true` is
+> explicitly set — an omission can't enable it, only a decision can.
+
+Two details worth adding:
+
+1. *It requires the exact string `true`.* Not `1`, not `yes`, not `TRUE`. A
+   flag this dangerous shouldn't have a forgiving parser, and there's a test
+   asserting each of those is rejected.
+2. *It announces itself.* The server logs a loud warning at boot, and the
+   frontend shows visitors a banner saying payments are simulated. Someone
+   arriving from a link has no other way to know, and a payment screen that
+   silently isn't one is exactly the kind of thing you say out loud.
+
+**If they push on it:** yes, anyone who can set environment variables on the
+server can already do anything. The threat model isn't a malicious operator,
+it's a careless one — me, at 2 AM, deploying without keys.
+
+---
+
 ## 6c. The two advisories I chose not to fix
 
 If anyone runs `npm audit` on the repo — and an interviewer might — two

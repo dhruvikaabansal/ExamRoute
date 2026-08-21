@@ -12,9 +12,9 @@ import Razorpay from 'razorpay';
  * count as "not configured", so a half-filled .env never tries to hit
  * Razorpay with obviously fake keys.
  */
-export function razorpayConfigured() {
-  const id = process.env.RAZORPAY_KEY_ID || '';
-  const secret = process.env.RAZORPAY_KEY_SECRET || '';
+export function razorpayConfigured(env = process.env) {
+  const id = env.RAZORPAY_KEY_ID || '';
+  const secret = env.RAZORPAY_KEY_SECRET || '';
   return (
     id.startsWith('rzp_') &&
     !id.toLowerCase().includes('xxx') &&
@@ -25,7 +25,48 @@ export function razorpayConfigured() {
 
 export const mockPayments = !razorpayConfigured();
 
+/**
+ * Whether simulated payments may actually be confirmed.
+ *
+ * Mock payments are blocked in production, because "mark my booking paid for
+ * free" is not an endpoint a mis-set environment variable should be able to
+ * expose. But a *public demo* is a production deployment by every other
+ * measure — real host, real database, NODE_ENV=production — and a demo where
+ * nobody can complete a booking demonstrates nothing.
+ *
+ * So the exception is explicit rather than implicit. Weakening the NODE_ENV
+ * check would have conflated two different questions: "is this production?"
+ * and "is this deployment allowed to fake payments?". They deserve separate
+ * answers, and the second one requires somebody to have deliberately typed
+ * ALLOW_MOCK_PAYMENTS=true.
+ */
+export function mockPaymentsAllowed(env = process.env) {
+  return env.NODE_ENV !== 'production' || env.ALLOW_MOCK_PAYMENTS === 'true';
+}
+
+/**
+ * True when this deployment is publicly showing simulated payments — i.e. it
+ * is production, has no real gateway, and has been told that is acceptable.
+ *
+ * Deliberately a function of the environment rather than a constant captured
+ * at import: a constant can only be tested by resetting the module registry,
+ * which in a shared module graph re-registers every Mongoose model and breaks
+ * unrelated files. A pure function is both easier to test and easier to
+ * reason about.
+ */
+export function demoMode(env = process.env) {
+  return !razorpayConfigured(env) && mockPaymentsAllowed(env) && env.NODE_ENV === 'production';
+}
+
 if (mockPayments) console.log('💳 Payments in DEV MOCK MODE (no real Razorpay keys)');
+
+// Loud on purpose. If this ever appears in the logs of something handling real
+// money, it should be impossible to scroll past.
+if (demoMode())
+  console.warn(
+    '\n⚠️  ALLOW_MOCK_PAYMENTS=true in production — payments are SIMULATED.\n' +
+      '   Correct for a public demo, catastrophic for anything taking real money.\n'
+  );
 
 export function getInstance() {
   return new Razorpay({
