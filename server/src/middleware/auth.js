@@ -28,7 +28,7 @@ export const protect = asyncHandler(async (req, res, next) => {
  * Role gate. `admin` is treated as a superset of every other role so a single
  * admin account can still demo the whole system end to end.
  *
- *   router.post('/tickets/:token/board', protect, allowRoles('conductor'), board)
+ *   router.post('/admin/route/:sessionId', protect, adminOnly, runRouting)
  */
 export function allowRoles(...roles) {
   const allowed = new Set([...roles, 'admin']);

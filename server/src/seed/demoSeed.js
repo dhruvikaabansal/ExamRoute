@@ -163,7 +163,7 @@ async function demo() {
           razorpayPaymentId: `mock_seed_${index}`,
           paidAt: new Date(),
           // Real tickets, so demo passengers can be scanned and boarded on the
-          // conductor screen just like a live booking.
+          // boarding screen just like a live booking.
           ticketToken: crypto.randomBytes(24).toString('hex'),
           assignedStop: assigned
             ? { name: assigned.stop.name, coordinates: assigned.stop.location.coordinates }

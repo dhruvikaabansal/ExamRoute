@@ -145,7 +145,7 @@ describe.skipIf(!dbReady)('auth', () => {
     process.env.ADMIN_EMAIL = 'boss@examroute.test';
     try {
       // An account that used to be admin and has since been demoted.
-      const user = await makeUser({ email: 'boss@examroute.test', role: 'conductor' });
+      const user = await makeUser({ email: 'boss@examroute.test', role: 'student' });
 
       const res = await request(app)
         .post('/api/auth/login')
@@ -298,7 +298,7 @@ describe.skipIf(!dbReady)('booking rules', () => {
   });
 
   /**
-   * Boarding is a conductor comparing an admit card to the roll number on
+   * Boarding is a person comparing an admit card to the roll number on
    * screen. A paid booking with no number cannot be verified at the door, so
    * it must not be creatable — this used to be an optional field.
    */
@@ -536,19 +536,19 @@ describe.skipIf(!dbReady)('roles and access control', () => {
     expect(res.status).toBe(403);
   });
 
-  it('withholds the passenger phone number from non-conductors', async () => {
+  it('withholds the passenger phone number from students', async () => {
     const { student, booking } = await boardingSetup();
     const res = await asUser(request(app).get(`/api/tickets/${booking.ticketToken}`), student);
     expect(res.body.phone).toBeUndefined();
   });
 
-  it('lets a conductor board a passenger without admin rights', async () => {
+  it('lets staff board a passenger', async () => {
     const { booking } = await boardingSetup();
-    const conductor = await makeUser({ role: 'conductor' });
+    const staff = await makeUser({ role: 'admin' });
 
     const res = await asUser(
       request(app).post(`/api/tickets/${booking.ticketToken}/board`),
-      conductor
+      staff
     );
     expect(res.status).toBe(200);
     expect((await Booking.findById(booking._id)).boarded).toBe(true);
@@ -565,9 +565,9 @@ describe.skipIf(!dbReady)('roles and access control', () => {
 
   it('refuses to board the same ticket twice', async () => {
     const { booking } = await boardingSetup();
-    const conductor = await makeUser({ role: 'conductor' });
+    const staff = await makeUser({ role: 'admin' });
     const board = () =>
-      asUser(request(app).post(`/api/tickets/${booking.ticketToken}/board`), conductor);
+      asUser(request(app).post(`/api/tickets/${booking.ticketToken}/board`), staff);
 
     expect((await board()).status).toBe(200);
     expect((await board()).status).toBe(409);
@@ -580,20 +580,19 @@ describe.skipIf(!dbReady)('roles and access control', () => {
     const booking = await makePaidBooking({
       user: await makeUser(), exam, session, center, coordinates: JAIPUR, status: 'pending',
     });
-    const conductor = await makeUser({ role: 'conductor' });
+    const staff = await makeUser({ role: 'admin' });
 
     const res = await asUser(
       request(app).post(`/api/tickets/${booking.ticketToken}/board`),
-      conductor
+      staff
     );
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/not paid/i);
   });
 
-  it('keeps a conductor out of admin routing', async () => {
-    const { session } = await boardingSetup();
-    const conductor = await makeUser({ role: 'conductor' });
-    const res = await asUser(request(app).post(`/api/admin/route/${session._id}`), conductor);
+  it('keeps a student out of admin routing', async () => {
+    const { session, student } = await boardingSetup();
+    const res = await asUser(request(app).post(`/api/admin/route/${session._id}`), student);
     expect(res.status).toBe(403);
   });
 

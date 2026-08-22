@@ -20,7 +20,7 @@ Then stop. Let them ask.
 
 This is the question that sinks the project if it catches you off guard, and wins it if you raise it yourself.
 
-> You can't, digitally. Only NTA knows who is registered, and there's no public API. The one legitimate route is DigiLocker, which requires partner-organisation onboarding I can't get as a student project. So rather than fake a "verified ✓" badge, I layered the deterrents I *can* honestly build: email OTP so it isn't a throwaway signup, a real payment so there's skin in the game, and a QR ticket that a conductor scans at boarding — and the conductor checks the physical admit card against the name and roll number on screen. The app verifies the ticket; a human verifies the person. I'd rather ship an honest boundary than a security theatre.
+> You can't, digitally. Only NTA knows who is registered, and there's no public API. The one legitimate route is DigiLocker, which requires partner-organisation onboarding I can't get as a student project. So rather than fake a "verified ✓" badge, I layered the deterrents I *can* honestly build: email OTP so it isn't a throwaway signup, a real payment so there's skin in the game, and a QR ticket that is scanned at boarding, where a person checks the physical admit card against the name and roll number on screen. The app verifies the ticket; a human verifies the person. I'd rather ship an honest boundary than a security theatre.
 
 That answer demonstrates threat modelling, knowing the limits of your own system, and a willingness to say "I can't."
 
@@ -117,9 +117,11 @@ This is a great answer because "works on my machine" is a universally understood
 
 ## 6. The access-control story
 
-> My conductor and driver features both required the admin login. Which meant that in practice, to run a real trip, I'd hand every bus driver the credential that can also re-run routing, read every student's home address and phone number, and see every booking. The "driver link" on my admin page was actively misleading — it didn't grant access to anything; you still needed the admin password to use it.
+> My driver feature required the admin login. Which meant that in practice, to run a real trip, I'd hand every bus driver the credential that can also re-run routing, read every student's home address and phone number, and see every booking. The "driver link" on my admin page was actively misleading — it didn't grant access to anything; you still needed the admin password to use it.
 
-> I split it three ways. Conductors got their own role, so boarding a passenger no longer requires admin. Drivers got something different: a capability link. Each bus carries a random 24-byte token, and that URL authorises exactly one bus and exactly two actions — read this route, report this position. A driver needs no account at all. And because links get shared over WhatsApp and printed on paper, I added rotation: issuing a new token instantly kills the old link.
+> The fix that mattered was the capability link. Each bus carries a random 24-byte token, and that URL authorises exactly one bus and exactly two actions — read this route, report this position. A driver needs no account at all. Because links get shared over WhatsApp and printed on paper, I added rotation: issuing a new token instantly kills the old one.
+
+> I also had a separate `conductor` role for boarding, and I later removed it. It was only reachable by an admin granting it, so in practice the operations team ran boarding anyway — an account type nobody is ever given is surface to maintain, not protection. Worth saying out loud, because deleting a feature you built is a harder call than adding one, and the driver link is where the access separation is actually real.
 
 **Expect the follow-up: "isn't a URL that anyone can use insecure?"** Have this ready:
 
@@ -255,6 +257,6 @@ Rehearse this. Run `npm run seed && npm run seed:demo` beforehand so the data is
 3. **Admin → Run routing engine** — this is the moment. *"Jaipur has 55 seats against a 40-seat bus, so watch it split into two, each within capacity. This is the bug I described — k-means picks the bus count but doesn't balance the split."* Point at the seat bars.
 4. **Driver link** — open in a private window to prove there's no login, hit Simulate driving.
 5. **Track bus live** as the student, side by side. Bus moves.
-6. **QR ticket → conductor boards them.** *"The app verified the ticket; the conductor verifies the person."*
+6. **QR ticket → board the passenger.** *"The app verified the ticket; a person verifies the person."*
 
 Have the failure cases ready if they want to poke: hit `/api/bookings/garbage` and show a clean 400 rather than a hang; try to open another student's ticket and get a 403.

@@ -80,7 +80,7 @@ larger, then trim hard.
 
 | 1:30–1:50 | Driver link in a private window, Simulate driving | "The driver needs no account — one link, one bus" |
 | 1:50–2:10 | Student's Track bus page, bus moving | "Students watch it move in real time" |
-| 2:10–2:30 | QR ticket → conductor boards them | "The app verifies the ticket. A human verifies the person." |
+| 2:10–2:30 | QR ticket → board the passenger | "The app verifies the ticket. A human verifies the person." |
 
 The routing-engine moment is the one to hold on. Everything else is a booking
 flow anyone has seen; the bus split is the part that shows engineering.
@@ -131,7 +131,7 @@ than impressions.
 > One thing I decided not to fake: there's no way to digitally verify that
 > someone is a real exam candidate. Only NTA knows, and there's no public API.
 > So instead of a fake "verified ✓" badge, the app verifies the *ticket* via
-> QR, and a conductor checks the admit card against the name on screen. The
+> QR, and a person checks the admit card against the name on screen. The
 > app verifies the ticket; a person verifies the person.
 >
 > MERN, JWT + Google OAuth, Razorpay with server-side signature verification,

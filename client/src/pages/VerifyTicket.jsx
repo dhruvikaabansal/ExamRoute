@@ -7,7 +7,7 @@ import { fmtDateTime } from '../lib/format';
 /**
  * Opened by scanning a passenger's QR ticket.
  *
- * Two audiences share this page. A conductor sees the boarding control; the
+ * Two audiences share this page. Staff see the boarding control; the
  * passenger themselves sees the same ticket read-only, because the API allows
  * a booking's owner to read it. Everyone else is refused by the server — the
  * token being hard to guess is not authorisation, and students share ticket
@@ -21,7 +21,8 @@ export default function VerifyTicket() {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const isConductor = ['conductor', 'admin'].includes(user?.role);
+  // Boarding is a staff action. Admin is the only account role that has it.
+  const isStaff = user?.role === 'admin';
 
   function load() {
     api
@@ -55,7 +56,7 @@ export default function VerifyTicket() {
   return (
     <div className="max-w-md mx-auto">
       <h2 className="text-xl font-semibold mb-3">
-        {isConductor ? 'Ticket verification' : 'Your e-ticket'}
+        {isStaff ? 'Ticket verification' : 'Your e-ticket'}
       </h2>
 
       <div className="bg-white border rounded-lg p-5 text-sm space-y-1">
@@ -88,7 +89,7 @@ export default function VerifyTicket() {
           )}
         </p>
 
-        {isConductor ? (
+        {isStaff ? (
           <>
             {/*
               The honest verification step. No third party can digitally confirm
@@ -122,7 +123,7 @@ export default function VerifyTicket() {
               </p>
             ) : (
               <p>
-                Show this to the conductor when boarding, along with your admit card.
+                Show this at the bus door along with your admit card.
               </p>
             )}
           </div>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import MapView from '../components/MapView';
-import RoleManager from '../components/RoleManager';
 import { fmtDate, fmtDateTime, fmtShort } from '../lib/format';
 
 /** Copy-to-clipboard with a graceful fallback for non-secure contexts. */
@@ -189,8 +188,6 @@ export default function Admin() {
           ))}
         </ul>
       )}
-
-      <RoleManager />
 
       {/*
         An empty list after a run is a real answer, not a blank space — the

@@ -1,12 +1,10 @@
 import crypto from 'crypto';
 import Bus from '../models/Bus.js';
 import Booking from '../models/Booking.js';
-import User from '../models/User.js';
-import { ROLES } from '../models/User.js';
 import { runRoutingForSession } from '../services/routingEngine.js';
 import { seatsOf } from '../services/clustering.js';
 import { ApiError } from '../utils/apiError.js';
-import { assertObjectId, assertEmail } from '../utils/validate.js';
+import { assertObjectId } from '../utils/validate.js';
 
 // POST /api/admin/route/:sessionId — run the routing engine for one date+shift
 export async function runRouting(req, res) {
@@ -91,32 +89,4 @@ export async function rotateDriverToken(req, res) {
   bus.driverToken = crypto.randomBytes(24).toString('hex');
   await bus.save();
   res.json({ driverToken: bus.driverToken });
-}
-
-/**
- * PATCH /api/admin/users/role  { email, role }
- *
- * Lets the admin appoint conductors without anyone sharing the admin login.
- */
-export async function setUserRole(req, res) {
-  const email = assertEmail(req.body.email);
-  const role = String(req.body.role || '');
-  if (!ROLES.includes(role))
-    throw ApiError.badRequest(`Role must be one of: ${ROLES.join(', ')}`);
-
-  const user = await User.findOne({ email });
-  if (!user) throw ApiError.notFound('No account with that email');
-
-  // Refuse to strip the configured admin of their own access — an easy way to
-  // lock everyone out of the system permanently.
-  if (
-    process.env.ADMIN_EMAIL &&
-    email === process.env.ADMIN_EMAIL.toLowerCase() &&
-    role !== 'admin'
-  )
-    throw ApiError.badRequest('Cannot demote the configured ADMIN_EMAIL account');
-
-  user.role = role;
-  await user.save();
-  res.json({ user });
 }

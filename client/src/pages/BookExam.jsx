@@ -173,7 +173,7 @@ export default function BookExam() {
         Your roll / application number for this exam <span className="text-red-600">*</span>
       </label>
       <p className="text-xs text-slate-400 mt-0.5">
-        Required. The conductor checks this against your admit card when you board, so it
+        Required. It is checked against your admit card when you board, so it
         has to match. Each exam issues its own number.
       </p>
       <input

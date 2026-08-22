@@ -11,7 +11,7 @@ const bookingSchema = new mongoose.Schema(
      * Roll / application number, per-exam and therefore on the booking rather
      * than the profile — a student's JEE number is not their NEET number.
      *
-     * Required, because boarding is a conductor comparing an admit card
+     * Required, because boarding is a person comparing an admit card
      * against this number on screen. A paid booking nobody can verify at the
      * door is worse than no booking.
      */
@@ -91,7 +91,7 @@ const bookingSchema = new mongoose.Schema(
     ticketToken: { type: String, index: true },
     boarded: { type: Boolean, default: false },
     boardedAt: { type: Date },
-    // audit trail: which conductor performed the admit-card check
+    // audit trail: which staff member performed the admit-card check
     boardedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

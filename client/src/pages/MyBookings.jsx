@@ -224,8 +224,8 @@ export default function MyBookings() {
                     <div className="mt-3 flex items-center gap-4 bg-slate-50 border rounded p-3">
                       <QRCodeSVG value={verifyUrl} size={128} />
                       <div className="text-xs text-slate-500">
-                        <p>Show this to the conductor when boarding.</p>
-                        <p className="mt-1">They scan it and check your admit card matches.</p>
+                        <p>Show this at the bus door when you board.</p>
+                        <p className="mt-1">It is scanned and checked against your admit card.</p>
                         <p className="mt-1 break-all text-slate-400">{verifyUrl}</p>
                       </div>
                     </div>

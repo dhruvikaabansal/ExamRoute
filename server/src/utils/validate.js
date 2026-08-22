@@ -65,7 +65,7 @@ export function assertNonEmptyString(value, field, { maxLength = 120 } = {}) {
 /**
  * The exam application / roll number, required on every booking.
  *
- * This is not paperwork. Boarding works by a conductor holding the passenger's
+ * This is not paperwork. Boarding works by staff holding the passenger's
  * admit card next to the name and roll number on their screen — that human
  * check is the entire identity story, since no third party can digitally
  * confirm someone is a real candidate. A paid booking with no roll number
@@ -82,7 +82,7 @@ export function assertRollNumber(value) {
   const roll = String(value ?? '').trim().toUpperCase();
   if (!roll)
     throw ApiError.badRequest(
-      'Your exam application / roll number is required — the conductor checks it against your admit card at boarding'
+      'Your exam application / roll number is required — it is checked against your admit card at boarding'
     );
   if (roll.length < 6 || roll.length > 24)
     throw ApiError.badRequest('Application / roll number must be between 6 and 24 characters');

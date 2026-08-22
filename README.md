@@ -28,7 +28,7 @@ Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments
 
 **Auth, two ways, with email verification.** Email + password (bcrypt) or Google OAuth 2.0. Email signups verify a 6-digit code; Google users are auto-verified because Google already did it. Either path ends with our own JWT. New to JWT? See [`docs/JWT.md`](docs/JWT.md).
 
-**Real exam data.** JEE / NEET / CUET seeded with their actual NTA patterns — JEE and CUET run across multiple dates with 1–2 shifts each, NEET is a single date and shift — across 13 real Rajasthan exam cities. An `Exam` is the umbrella; each individual sitting is an `ExamSession` (one date + one shift), because that is the unit a student actually travels to.
+**Real exam data.** Eight exams and 25 sittings seeded with their actual patterns — both JEE Main sessions, JEE Advanced with its two compulsory papers, NEET as a single afternoon shift, CUET subject-wise across three days, plus REET, RPSC RAS and CLAT — across 22 real Rajasthan exam cities. An `Exam` is the umbrella; each individual sitting is an `ExamSession` (one date + one shift), because that is the unit a student actually travels to.
 
 **Booking and payment.** Pick a date and shift, add seats for parents or guardians, see a distance-based **subsidised** fare, and pay via Razorpay with server-side signature verification. Fares are always computed on the server from validated coordinates — the client never sends a price.
 
@@ -38,11 +38,11 @@ Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments
 
 **Routing engine.** Clusters paid students into buses that fit within seat capacity, orders each bus's stops via Directions optimised waypoints, and works backwards from the exam's reporting time to produce a departure time and a per-stop pickup schedule. Overnight departures from far towns are detected and labelled.
 
-**QR e-ticket and boarding.** Every paid booking gets a QR ticket. A conductor scans it, sees the passenger and roll number, checks the admit card, and marks them boarded. The application / roll number is **required** on every booking and validated server-side — boarding is a human comparing that number to an admit card, so a paid seat nobody can verify at the door is worse than no seat. It lives on the booking rather than the profile because it is issued per exam: a JEE application number is not a NEET one.
+**QR e-ticket and boarding.** Every paid booking gets a QR ticket. Staff scan it, see the passenger and roll number, check the admit card, and mark them boarded. The application / roll number is **required** on every booking and validated server-side — boarding is a human comparing that number to an admit card, so a paid seat nobody can verify at the door is worse than no seat. It lives on the booking rather than the profile because it is issued per exam: a JEE application number is not a NEET one.
 
 **Live bus tracking.** The driver opens a link that shares the bus's GPS; students watch it move on a live map. The driver needs no account — see [the security model](#security-model).
 
-**Admin.** Run routing per date and shift, see every bus with its route, seat load, and driver link, and appoint conductors.
+**Admin.** Run routing per date and shift, see every bus with its route, seat load and driver link, and board passengers by scanning their ticket.
 
 > **On identity verification (worth raising before you are asked):** no third party can *digitally* confirm that someone is a genuine exam candidate. Only NTA can, and there is no public API. The only real digital path is **DigiLocker**, which requires partner-organisation onboarding that a student project cannot obtain. So ExamRoute uses honest layers instead: email OTP (deters throwaway signups), real payment (skin in the game), and a **human admit-card check at boarding** via the QR. The app verifies the *ticket*; a person verifies the *person*.
 
@@ -80,7 +80,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ### 4. Seed
 
 ```bash
-npm run seed        # real Rajasthan exams, sittings, 13 centres, pickup stops
+npm run seed        # 8 exams, 25 sittings, 22 centres, 44 pickup stops
 npm run seed:demo   # ~49 paid demo students, sized to force a capacity split
 ```
 
@@ -97,10 +97,10 @@ npm run dev
 
 1. **Sign up** with email + password. The OTP is printed to the server console (no SMTP needed). Use your `ADMIN_EMAIL` so you get admin rights.
 2. **Book a seat** — pick a sitting, drop a home pin, choose companions, see the subsidised fare, pay (mock mode confirms instantly).
-3. **Admin → Run routing engine** on the JEE sitting the demo seeded. Jaipur has ~55 seats against a 40-seat capacity, so watch it split into two buses, each within capacity.
+3. **Admin → Run routing engine** on the first JEE sitting the demo seeded. Jaipur has 59 seats against a 40-seat capacity, so it splits into two buses — and the split follows direction, with Alwar and Dausa on one and Sikar on the other.
 4. **Copy a driver link** from the bus card and open it in a private window — no login. Hit **Simulate driving**.
 5. **Track bus live** from the student's My Bookings page and watch the bus move.
-6. **Show QR ticket**, open it as a conductor account, and mark the passenger boarded.
+6. **Show QR ticket**, open the verify link, and mark the passenger boarded.
 
 ---
 
@@ -211,11 +211,11 @@ Long routes from far towns legitimately depart the previous evening. Those buses
 
 ## Security model
 
-**Roles are separated by job.** `student`, `conductor`, `driver`, `admin` — where admin is a superset so one account can still demo everything. Boarding a passenger requires `conductor`, not full admin; a conductor cannot run routing or read the booking list.
+**Drivers need no account at all.** That is where the access separation actually matters, and it is the part that is real: a driver is authorised by a random per-bus token, not by a login. `student` and `admin` are the account roles; boarding is an admin action. A `conductor` role existed but was removed — it was only reachable by an admin granting it, so operations ran boarding anyway, and an account type nobody is ever given is surface to maintain rather than protection.
 
 **Drivers authenticate with a capability link, not an account.** Each bus carries a random 24-byte token. The link authorises exactly one bus and exactly two actions: read its route, report its position. A driver needs no credentials, and a leaked link is revoked by rotating the token from the admin page. This replaced a design where the "driver link" only worked for someone holding the admin password.
 
-**Tickets are readable by their owner or a conductor.** A ticket token being hard to guess is not authorisation — students share ticket screenshots, and the URL is printed under the QR code. Passenger phone numbers are returned only to conductors.
+**Tickets are readable by their owner or staff.** A ticket token being hard to guess is not authorisation — students share ticket screenshots, and the URL is printed under the QR code. Passenger phone numbers are returned only to staff.
 
 **OTPs are treated as credentials.** Generated with `crypto.randomInt`, stored as a bcrypt hash, capped at 5 attempts per account, rate-limited per IP, and subject to a resend cooldown. A 6-digit code has a million possibilities; without a cap that is minutes of scripted guessing, not a security control.
 
@@ -254,7 +254,7 @@ If neither is reachable, the integration specs skip with a visible warning rathe
 
 That is the right default on a laptop and the wrong one in CI, where it would produce a green badge for a run in which the entire integration layer never executed. So CI sets `REQUIRE_DB=1`, which turns a missing database from a footnote into a failure. Worth knowing if you ever see the suite pass suspiciously fast: check whether it actually ran, or merely declined to.
 
-Notable cases: buses are never overfilled even when every student lives at the same point; routing is idempotent and leaves no orphaned bookings; a student cannot read another student's booking or ticket; a conductor cannot reach admin routes; a rotated driver link stops working; bookings are refused after the deadline; malformed coordinates are rejected rather than stored as `NaN`; refunds are monotonic in time and never exceed what was paid.
+Notable cases: buses are never overfilled even when every student lives at the same point; routing is idempotent and leaves no orphaned bookings; a student cannot read another student's booking or ticket; a rotated driver link stops working; bookings are refused after the deadline; malformed coordinates are rejected rather than stored as `NaN`; refunds are monotonic in time and never exceed what was paid.
 
 ### CI
 

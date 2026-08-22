@@ -10,19 +10,24 @@ const pointSchema = new mongoose.Schema(
 );
 
 /**
- * Roles are separated by job, not lumped into one "admin" account.
+ * Two account roles, and one job that needs no account at all.
  *
- * Previously conductors (boarding passengers) and drivers (posting the bus's
- * GPS) both needed the single admin login — which meant handing every driver
- * a credential that could also re-run routing and read every student's
- * personal details. Each role now carries only what that job needs:
+ *   student — books seats, sees their own bookings and ticket
+ *   driver  — reserved; live location uses a per-bus capability link, so a
+ *             driver never actually signs in
+ *   admin   — runs routing, manages buses, boards passengers
  *
- *   student   — books seats, sees their own bookings and ticket
- *   conductor — scans QR tickets and marks passengers boarded
- *   driver    — reserved; live location uses a per-bus capability link
- *   admin     — runs routing, manages buses (superset of the above)
+ * Boarding is an admin action. A separate `conductor` role existed and was
+ * removed: it was only reachable by an admin granting it, so in practice the
+ * operations team ran boarding anyway, and an account type nobody is ever
+ * given is a surface to maintain rather than a protection.
+ *
+ * The driver link is the part that genuinely matters here, and it is
+ * untouched — a driver is authorised by a random per-bus token that permits
+ * exactly two things, reading that bus's route and reporting its position.
+ * That is what stops every driver being handed the admin password.
  */
-export const ROLES = ['student', 'conductor', 'driver', 'admin'];
+export const ROLES = ['student', 'driver', 'admin'];
 
 const userSchema = new mongoose.Schema(
   {

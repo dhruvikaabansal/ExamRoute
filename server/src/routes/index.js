@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { protect, allowRoles, adminOnly, driverTokenAuth } from '../middleware/auth.js';
+import { protect, adminOnly, driverTokenAuth } from '../middleware/auth.js';
 import {
   authLimiter,
   otpVerifyLimiter,
@@ -63,15 +63,11 @@ router.post('/payments/verify', protect, payments.verifyPayment);
 router.post('/payments/mock-confirm', protect, payments.mockConfirm);
 
 // -------------------------------------------------- tickets (QR boarding)
-// Reading a ticket is limited to its owner or a conductor; boarding is a
-// conductor action. Neither requires full admin any more.
+// Reading a ticket is limited to its owner or staff — an unguessable token is
+// not authorisation, since students share ticket screenshots and the URL is
+// printed under the QR code. Boarding is a staff action.
 router.get('/tickets/:token', protect, tickets.getTicket);
-router.post(
-  '/tickets/:token/board',
-  protect,
-  allowRoles('conductor'),
-  tickets.boardTicket
-);
+router.post('/tickets/:token/board', protect, adminOnly, tickets.boardTicket);
 
 // ------------------------------------------------- driver (capability link)
 // No login: the token in the URL authorises exactly one bus.
@@ -94,6 +90,5 @@ router.post(
   adminOnly,
   admin.rotateDriverToken
 );
-router.patch('/admin/users/role', protect, adminOnly, admin.setUserRole);
 
 export default router;
