@@ -132,6 +132,51 @@ describe.skipIf(!dbReady)('auth', () => {
     expect(known.body.message).toBe(unknown.body.message);
   });
 
+  /**
+   * ADMIN_EMAIL is an invariant, not a one-time assignment.
+   *
+   * It was applied at signup and never checked again, so anything that later
+   * changed that account's role locked the system out permanently — no
+   * remaining account could reach the admin page to undo it, including the one
+   * named in the configuration. Signing in must restore it.
+   */
+  it('restores admin to the configured ADMIN_EMAIL on sign-in', async () => {
+    const previous = process.env.ADMIN_EMAIL;
+    process.env.ADMIN_EMAIL = 'boss@examroute.test';
+    try {
+      // An account that used to be admin and has since been demoted.
+      const user = await makeUser({ email: 'boss@examroute.test', role: 'conductor' });
+
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'boss@examroute.test', password: 'password123' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.role).toBe('admin');
+
+      const { default: User } = await import('../src/models/User.js');
+      expect((await User.findById(user._id)).role).toBe('admin');
+    } finally {
+      process.env.ADMIN_EMAIL = previous;
+    }
+  });
+
+  it('does not promote anyone else', async () => {
+    const previous = process.env.ADMIN_EMAIL;
+    process.env.ADMIN_EMAIL = 'boss@examroute.test';
+    try {
+      await makeUser({ email: 'someone@examroute.test' });
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'someone@examroute.test', password: 'password123' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.role).toBe('student');
+    } finally {
+      process.env.ADMIN_EMAIL = previous;
+    }
+  });
+
   it('rejects requests with no or invalid token', async () => {
     expect((await request(app).get('/api/auth/me')).status).toBe(401);
     expect(

@@ -1,10 +1,19 @@
 import { useState } from 'react';
 import api from '../api/client';
 
+/**
+ * The roles an admin can actually hand out.
+ *
+ * The schema also defines `driver`, which is deliberately absent here:
+ * drivers do not have accounts at all. They are authorised by a per-bus
+ * capability link, so there is nobody to assign the role to. Offering it
+ * would imply an account-based driver flow that does not exist — and should
+ * not, since it would mean handing a credential to someone who works one trip.
+ */
 const ROLES = [
-  { value: 'conductor', label: 'Conductor — can scan tickets and board passengers' },
-  { value: 'student', label: 'Student — the default' },
-  { value: 'admin', label: 'Admin — full access, including routing' },
+  { value: 'conductor', label: 'Conductor — can scan tickets and board passengers, nothing else' },
+  { value: 'student', label: 'Student — the default; can only see their own bookings' },
+  { value: 'admin', label: 'Admin — everything, including routing and every student’s address' },
 ];
 
 /**
@@ -85,6 +94,10 @@ export default function RoleManager() {
 
       <p className="text-xs text-slate-400 mt-2">
         {ROLES.find((r) => r.value === role)?.label}
+      </p>
+      <p className="text-xs text-slate-400 mt-1">
+        There is no <b>driver</b> role to assign — drivers never sign in. Each bus card
+        below carries a link that authorises that one bus, so a driver needs no account.
       </p>
 
       {result && (

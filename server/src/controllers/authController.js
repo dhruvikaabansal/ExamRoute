@@ -30,6 +30,23 @@ function isAdminEmail(email) {
 }
 
 /**
+ * ADMIN_EMAIL is an invariant, not a one-time assignment.
+ *
+ * The configured address was promoted to admin at signup and never checked
+ * again, so anything that later changed that account's role locked the system
+ * out permanently — no remaining account could reach the admin page to undo
+ * it, including the account named in the configuration. Re-asserting it on
+ * every sign-in makes the situation recoverable by logging out and back in,
+ * which is the sort of recovery path a person can find without being told.
+ */
+async function enforceAdminEmail(user) {
+  if (!isAdminEmail(user.email) || user.role === 'admin') return user;
+  user.role = 'admin';
+  await user.save();
+  return user;
+}
+
+/**
  * `crypto.randomInt` rather than `Math.random`.
  *
  * `Math.random` is a fast PRNG, not a cryptographic one: its output is
@@ -175,6 +192,7 @@ export async function login(req, res) {
     });
   }
 
+  await enforceAdminEmail(user);
   res.json({ token: signToken(user), user });
 }
 
