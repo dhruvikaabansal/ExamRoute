@@ -130,7 +130,7 @@ export default function Login() {
 
   if (mode === 'forgot') {
     return (
-      <div className="max-w-md mx-auto mt-16">
+      <div className="max-w-sm mx-auto mt-20">
         <div className="card p-6">
           <h2 className="text-lg font-semibold">Reset your password</h2>
           <p className="text-sm text-slate-500 mt-1">
@@ -171,7 +171,7 @@ export default function Login() {
 
   if (mode === 'reset') {
     return (
-      <div className="max-w-md mx-auto mt-16">
+      <div className="max-w-sm mx-auto mt-20">
         <div className="card p-6">
           <h2 className="text-lg font-semibold">Choose a new password</h2>
           <p className="text-sm text-slate-500 mt-1">
@@ -226,7 +226,7 @@ export default function Login() {
 
   if (mode === 'otp') {
     return (
-      <div className="max-w-md mx-auto mt-16">
+      <div className="max-w-sm mx-auto mt-20">
         <div className="card p-6">
           <h2 className="text-lg font-semibold">Verify your email</h2>
           <p className="text-sm text-slate-500 mt-1">
@@ -276,37 +276,50 @@ export default function Login() {
   }
 
   return (
-    <div className="-mx-4 -mt-6">
-      {/*
-        Hero, then the card lifted over its lower edge — the shape every travel
-        booking site uses, and for a reason: it puts the promise and the action
-        in one glance instead of making you scroll to find the form.
-      */}
-      {/*
-        A pale tint rather than a saturated slab. The brand colour is worth
-        more when it is spent on the one thing you want pressed — everything
-        here is dark text on near-white, which is how the booking sites this
-        borrows from actually look.
-      */}
-      <div className="bg-brand-soft/50 border-b border-brand-soft px-4 pt-12 pb-10">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900 max-w-2xl">
+    /*
+      Two columns rather than a hero with a card dropped over its edge.
+      The old shape left half the screen empty beside the headline and put a
+      hard seam through the middle of the form. A split screen fills both
+      halves, keeps the pitch and the action side by side, and collapses to a
+      single stack on a phone without any of it needing to move.
+    */
+    <div className="-mx-4 -mt-6 min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
+      <div className="bg-brand-soft/40 px-6 py-14 lg:px-14 flex items-center">
+        <div className="w-full max-w-md mx-auto lg:mx-0">
+          <div className="flex items-center gap-2 mb-8">
+            <span className="text-2xl">🚌</span>
+            <span className="font-bold text-xl tracking-tight text-brand">ExamRoute</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-bold leading-[1.15] text-slate-900">
             Share a bus to your exam centre
           </h1>
-          <p className="mt-3 text-slate-600 max-w-xl leading-relaxed">
+          <p className="mt-4 text-slate-600 leading-relaxed">
             We pool you with students near you heading to the same centre, find your
             nearest pickup stop, and time the departure backwards from when the gate
             closes.
           </p>
-          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
-            <span>Pickup near home</span>
-            <span>Fares subsidised by distance</span>
-            <span>Live bus tracking</span>
-          </div>
+
+          <ul className="mt-8 space-y-4">
+            {[
+              ['🚏', 'Pickup near home', 'Matched to the nearest stop in your area.'],
+              ['💸', 'Fares that fall with distance', 'The furthest journeys get the largest subsidy.'],
+              ['📍', 'Live bus tracking', 'Watch it move on the morning of the exam.'],
+            ].map(([icon, title, detail]) => (
+              <li key={title} className="flex gap-3">
+                <span className="text-lg leading-none mt-0.5">{icon}</span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{title}</p>
+                  <p className="text-sm text-slate-500">{detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 -mt-8 relative pb-12">
+      <div className="px-4 py-14 flex items-center justify-center">
+        <div className="w-full max-w-sm">
       <div className="card p-6">
         <div className="flex gap-1 mb-5 text-sm bg-slate-100 rounded-xl p-1">
           <button
@@ -402,9 +415,10 @@ export default function Login() {
         )}
       </div>
 
-        <p className="text-center text-xs text-slate-400 mt-4">
+        <p className="text-center text-xs text-slate-400 mt-5">
           Built for students sitting JEE, NEET, CUET and Rajasthan state exams.
         </p>
+        </div>
       </div>
     </div>
   );

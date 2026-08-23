@@ -22,6 +22,10 @@ export default function Navbar() {
         : 'border-transparent text-slate-500 hover:text-slate-900'
     }`;
 
+  // Signed out, the bar has nothing in it but the wordmark — and the login
+  // page carries its own. An empty strip above a split screen is just a seam.
+  if (!user) return null;
+
   return (
     <nav className="bg-white border-b sticky top-0 z-[900]">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
