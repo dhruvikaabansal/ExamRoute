@@ -16,11 +16,13 @@ export default function Exams() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p>Loading exams…</p>;
+  if (loading) return <p className="page-wide">Loading exams…</p>;
 
   if (error)
     return (
-      <div className="notice bg-red-50 border-red-200 text-red-700 p-5">{error}</div>
+      <div className="page-wide">
+        <div className="notice bg-red-50 border-red-200 text-red-700 p-5">{error}</div>
+      </div>
     );
 
   /*
@@ -29,18 +31,19 @@ export default function Exams() {
   */
   if (exams.length === 0)
     return (
-      <div className="bg-white border rounded-lg p-6 text-center">
-        <p className="text-4xl mb-2"></p>
-        <h2 className="font-semibold">No exams listed yet</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Nothing has been scheduled for this state. Check back once the exam calendar
-          is published.
-        </p>
+      <div className="page-wide">
+        <div className="card p-8 text-center">
+          <h2 className="font-semibold text-slate-900">No exams listed yet</h2>
+          <p className="muted mt-1.5 max-w-sm mx-auto">
+            Nothing has been scheduled for this state. Check back once the exam calendar
+            is published.
+          </p>
+        </div>
       </div>
     );
 
   return (
-    <div>
+    <div className="page-wide">
       {/*
         Plain type on white. A saturated banner reads as decoration and pushes
         the actual content down; the colour is worth more when it is reserved

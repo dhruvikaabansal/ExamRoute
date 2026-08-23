@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/client';
 import MapView from '../components/MapView';
+import NextStep from '../components/NextStep';
 import { fmtTime } from '../lib/format';
 
 // Student view — polls the assigned bus's live location every few seconds.
@@ -28,13 +29,22 @@ export default function TrackBus() {
     };
   }, [bookingId]);
 
-  if (err) return <p className="text-slate-600">{err}</p>;
-  if (!data) return <p>Loading…</p>;
+  if (err)
+    return (
+      <div className="page-mid">
+        <p className="notice bg-slate-50 border-slate-200 text-slate-600">{err}</p>
+        <NextStep actions={[{ to: '/my-bookings', label: 'Back to my tickets' }]}>
+          Tracking switches on once routing has formed your bus and the driver starts
+          sharing their location on the day.
+        </NextStep>
+      </div>
+    );
+  if (!data) return <p className="page-mid">Loading…</p>;
 
   const bus = data.currentLocation;
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="page-mid">
       <h2 className="page-title mb-1">Live bus tracking</h2>
       <p className="text-sm text-slate-500 mb-3">
         {bus
@@ -52,6 +62,15 @@ export default function TrackBus() {
           Showing your planned route. The live marker appears once the driver starts sharing.
         </p>
       )}
+
+      <NextStep
+        title="On the day"
+        actions={[{ to: '/my-bookings', label: 'Back to my tickets' }]}
+      >
+        Be at your stop by the time on your ticket, with your admit card. Staff scan your
+        QR at the door and check the card against it — that is the whole boarding
+        process.
+      </NextStep>
     </div>
   );
 }

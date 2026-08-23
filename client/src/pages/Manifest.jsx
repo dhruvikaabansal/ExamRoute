@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
+import NextStep from '../components/NextStep';
 import { fmtDateTime, fmtTime } from '../lib/format';
 
 /**
@@ -86,16 +87,53 @@ export default function Manifest() {
 
   if (!data) return <p>Loading boarding list…</p>;
 
-  const { bus, totals } = data;
+  const { bus, totals, position } = data;
   const allBoarded = totals.remaining === 0 && totals.passengers > 0;
+  const driverUrl = bus.driverToken
+    ? `${window.location.origin}/drive/${bus.driverToken}`
+    : null;
 
   return (
-    <div>
-      <Link to="/admin" className="text-sm text-brand hover:underline">
-        ← Back to Admin
-      </Link>
+    <div className="page-wide">
+      {/*
+        On a busy morning somebody is walking down a line of five buses with a
+        phone. Making them return to Admin and find the right row between each
+        one is a detour the page can simply remove.
+      */}
+      <div className="flex items-center justify-between gap-4 mb-2">
+        <Link to="/admin" className="text-sm text-brand hover:underline">
+          ← All buses
+        </Link>
+        {position?.total > 1 && (
+          <div className="flex items-center gap-3 text-sm">
+            {position.previous ? (
+              <Link
+                to={`/manifest/${position.previous.id}`}
+                className="text-slate-500 hover:text-brand transition"
+              >
+                ← {position.previous.label}
+              </Link>
+            ) : (
+              <span className="text-slate-300">← previous</span>
+            )}
+            <span className="text-xs text-slate-400">
+              {position.index} of {position.total}
+            </span>
+            {position.next ? (
+              <Link
+                to={`/manifest/${position.next.id}`}
+                className="text-slate-500 hover:text-brand transition"
+              >
+                {position.next.label} →
+              </Link>
+            ) : (
+              <span className="text-slate-300">next →</span>
+            )}
+          </div>
+        )}
+      </div>
 
-      <h2 className="page-title mt-2">Boarding list — {bus.label}</h2>
+      <h2 className="page-title">Boarding list — {bus.label}</h2>
       <p className="text-sm text-slate-500">
         Departs <b>{fmtDateTime(bus.departureTime)}</b> · reaching {bus.center} by{' '}
         <b>{fmtDateTime(bus.arrivalTime)}</b>
@@ -154,9 +192,15 @@ export default function Manifest() {
             <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b">
               <div>
                 <b className="text-sm">{stop.name}</b>
+                {/*
+                  Both clocks, because staff are judging lateness against one
+                  of them. Passengers were told the earlier time; the bus is
+                  due at the later one.
+                */}
                 {stop.pickupTime && (
                   <span className="text-xs text-slate-500 ml-2">
-                    pickup {fmtTime(stop.pickupTime)}
+                    {stop.boardBy && `passengers told ${fmtTime(stop.boardBy)} · `}
+                    bus due {fmtTime(stop.pickupTime)}
                   </span>
                 )}
               </div>
@@ -210,9 +254,45 @@ export default function Manifest() {
       </div>
 
       <p className="text-xs text-slate-400 mt-4">
-        Check each passenger's admit card against the name and roll number before marking
-        them aboard. The app confirms the ticket is real and paid; you confirm the person is.
+        Check each passenger&apos;s admit card against the name and roll number before
+        marking them aboard. The app confirms the ticket is real and paid; you confirm the
+        person is.
       </p>
+
+      {/*
+        Boarding is the middle of an errand, not the end of one. Ticking off
+        the last name used to leave staff on a page that congratulated them and
+        stopped — the driver's screen, which is what actually happens next, was
+        three clicks away on another page.
+      */}
+      <NextStep
+        actions={[
+          allBoarded && driverUrl
+            ? { href: driverUrl, label: 'Open the driver page' }
+            : position?.next
+              ? { to: `/manifest/${position.next.id}`, label: `Board ${position.next.label}` }
+              : { to: '/admin', label: 'Back to all buses' },
+          allBoarded && position?.next
+            ? { to: `/manifest/${position.next.id}`, label: `Next: ${position.next.label}` }
+            : null,
+          { to: '/admin', label: 'All buses for this sitting' },
+        ].filter(Boolean)}
+      >
+        {allBoarded ? (
+          <>
+            Everyone on this bus is aboard, so it can leave. The driver opens their own
+            link and starts sharing GPS — that is what puts the moving bus on every
+            passenger&apos;s tracking screen.
+          </>
+        ) : (
+          <>
+            {totals.remaining} passenger{totals.remaining === 1 ? '' : 's'} still to board.
+            Ring anyone who has not arrived using the number beside their name; the bus
+            leaves at {fmtTime(bus.departureTime)} either way, because waiting makes
+            everyone aboard late for the same exam.
+          </>
+        )}
+      </NextStep>
     </div>
   );
 }

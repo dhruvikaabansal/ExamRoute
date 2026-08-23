@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import NextStep from '../components/NextStep';
 import { fmtDateTime } from '../lib/format';
 
 /**
@@ -50,16 +51,28 @@ export default function VerifyTicket() {
     }
   }
 
-  if (err) return <p className="text-red-600">{err}</p>;
-  if (!ticket) return <p>Loading ticket…</p>;
+  if (err)
+    return (
+      <div className="page-narrow">
+        <p className="notice bg-red-50 border-red-200 text-red-700">{err}</p>
+        <NextStep
+          title="Try this instead"
+          actions={[{ to: isStaff ? '/admin' : '/my-bookings', label: 'Back to my list' }]}
+        >
+          A ticket link that will not open is usually one that was truncated when it was
+          copied, or a booking that has since been cancelled.
+        </NextStep>
+      </div>
+    );
+  if (!ticket) return <p className="page-narrow">Loading ticket…</p>;
 
   return (
-    <div className="max-w-md mx-auto">
-      <h2 className="text-xl font-semibold mb-3">
+    <div className="page-narrow">
+      <h2 className="page-title mb-3">
         {isStaff ? 'Ticket verification' : 'Your e-ticket'}
       </h2>
 
-      <div className="bg-white border rounded-lg p-5 text-sm space-y-1">
+      <div className="card p-6 text-sm space-y-1">
         <p className="text-lg font-medium">{ticket.passenger}</p>
         {ticket.rollNumber && (
           <p>
@@ -74,9 +87,10 @@ export default function VerifyTicket() {
           Seats: {ticket.seats} · Stop: {ticket.stop || '—'}
         </p>
         <p>Bus: {ticket.bus || 'not assigned yet'}</p>
-        {ticket.pickupTimeLabel && (
+        {/* The time the passenger was given, not the time the bus is due. */}
+        {(ticket.boardByLabel || ticket.pickupTimeLabel) && (
           <p>
-            Be at the stop by: <b>{ticket.pickupTimeLabel}</b>
+            Be at the stop by: <b>{ticket.boardByLabel || ticket.pickupTimeLabel}</b>
           </p>
         )}
         {ticket.phone && <p className="text-slate-500">Contact: {ticket.phone}</p>}
@@ -96,8 +110,8 @@ export default function VerifyTicket() {
               someone is a genuine exam candidate, so the app verifies the
               ticket and a human verifies the person.
             */}
-            <div className="mt-3 bg-amber-50 border border-amber-200 rounded p-3 text-amber-800">
-              👀 Check the passenger's <b>admit card</b> matches the name and roll
+            <div className="notice bg-amber-50 border-amber-200 text-amber-800 mt-3">
+              Check the passenger&apos;s <b>admit card</b> matches the name and roll
               number above before boarding them.
             </div>
 
@@ -116,21 +130,41 @@ export default function VerifyTicket() {
             )}
           </>
         ) : (
-          <div className="mt-3 bg-slate-50 border rounded p-3 text-slate-600">
+          <div className="notice bg-slate-50 border-slate-200 text-slate-600 mt-3">
             {ticket.boarded ? (
               <p className="text-green-700 font-medium">
-                Boarded at {fmtDateTime(ticket.boardedAt)} ✓
+                Boarded at {fmtDateTime(ticket.boardedAt)}
               </p>
             ) : (
-              <p>
-                Show this at the bus door along with your admit card.
-              </p>
+              <p>Show this at the bus door along with your admit card.</p>
             )}
           </div>
         )}
 
         {msg && <p className="mt-2 text-sm text-green-700">{msg}</p>}
       </div>
+
+      {/*
+        A scan is one passenger out of forty. Whoever is holding the phone is
+        mid-way through a queue, so the useful link is back to the list they
+        are working down — not a dead end on a single ticket.
+      */}
+      <NextStep
+        actions={
+          isStaff
+            ? [
+                { to: '/admin', label: 'Back to the boarding lists' },
+                { to: '/my-bookings', label: 'My own tickets' },
+              ]
+            : [{ to: '/my-bookings', label: 'Back to my tickets' }]
+        }
+      >
+        {isStaff
+          ? 'Scan the next passenger, or work down the boarding list for this bus to see who is still missing.'
+          : ticket.boarded
+            ? 'You are aboard. Your bus can be followed live from My Bookings until it reaches the centre.'
+            : 'Keep this screen handy — staff scan it at the bus door, alongside your admit card.'}
+      </NextStep>
     </div>
   );
 }

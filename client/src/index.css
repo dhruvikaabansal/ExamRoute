@@ -122,6 +122,36 @@
     @apply text-2xl font-bold;
   }
 
+  /**
+   * Content columns.
+   *
+   * The shell is six-xl wide because the admin screen needs it. Every other
+   * page is a form or a list that should not be read at that width — a line of
+   * text 1100px long is genuinely harder to read than one at 600 — so those
+   * pages set their own narrower column.
+   *
+   * The bug this fixes is what happens when they set a width and forget to
+   * centre it: on a laptop the form pinned itself to the left edge of the
+   * shell with a third of the screen empty beside it, which reads as a broken
+   * layout rather than a deliberate measure. Centring is baked in here so it
+   * cannot be forgotten again.
+   *
+   * Headings and labels stay left-aligned inside the column. Centred body text
+   * is harder to scan because every line starts in a different place; the
+   * column is centred, the text within it is not.
+   */
+  .page-narrow {
+    @apply max-w-xl mx-auto;
+  }
+
+  .page-mid {
+    @apply max-w-2xl mx-auto;
+  }
+
+  .page-wide {
+    @apply max-w-4xl mx-auto;
+  }
+
   .muted {
     @apply text-sm text-slate-500;
   }

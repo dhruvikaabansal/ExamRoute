@@ -132,7 +132,7 @@ export default function BookExam() {
   const selectedSession = sessions.find((s) => s._id === sessionId);
 
   return (
-    <div className="max-w-lg">
+    <div className="page-mid">
       <h2 className="page-title mb-1">Book your seat</h2>
       {exam && <p className="text-sm text-slate-500 mb-4">{exam.name}</p>}
 
@@ -240,29 +240,50 @@ export default function BookExam() {
         ))}
       </div>
 
-      <button
-        onClick={getQuote}
-        className="mt-4 bg-slate-200 px-4 py-2 rounded text-sm hover:bg-slate-300"
-      >
+      {/*
+        The fare is quoted before it is charged, deliberately. Distance-based
+        pricing is only fair if you can see the distance it was based on.
+      */}
+      <button onClick={getQuote} className="btn-outline mt-5">
         Get fare estimate
       </button>
 
-      {quote && (
-        <div className="mt-4 bg-white border rounded p-4 text-sm space-y-1">
-          <p>Distance to center: <b>{quote.distanceKm} km</b></p>
-          <p>Seats: <b>{quote.seats}</b> · Base fare: <b>₹{quote.baseFare}</b></p>
-          <p className="text-green-700">
-            Subsidy for your distance: <b>{quote.subsidyPercent}%</b>
+      {quote ? (
+        <div className="card p-6 mt-4 text-sm">
+          <div className="space-y-1.5">
+            <p className="flex justify-between">
+              <span className="text-slate-500">Distance to the centre</span>
+              <b>{quote.distanceKm} km</b>
+            </p>
+            <p className="flex justify-between">
+              <span className="text-slate-500">Seats</span>
+              <b>{quote.seats}</b>
+            </p>
+            <p className="flex justify-between">
+              <span className="text-slate-500">Base fare</span>
+              <b>₹{quote.baseFare}</b>
+            </p>
+            <p className="flex justify-between text-green-700">
+              <span>Subsidy for your distance</span>
+              <b>{quote.subsidyPercent}%</b>
+            </p>
+          </div>
+          <p className="flex justify-between items-baseline border-t border-slate-100 mt-3 pt-3">
+            <span className="font-medium">You pay</span>
+            <b className="text-xl">₹{quote.fare}</b>
           </p>
-          <p className="text-lg">You pay: <b>₹{quote.fare}</b></p>
-          <button
-            onClick={bookAndPay}
-            disabled={busy}
-            className="btn-primary mt-2"
-          >
-            {busy ? 'Processing…' : `Pay ₹${quote.fare} & book`}
+          <button onClick={bookAndPay} disabled={busy} className="btn-primary w-full mt-4">
+            {busy ? 'Processing…' : `Pay ₹${quote.fare} and book →`}
           </button>
+          <p className="text-xs text-slate-400 mt-3">
+            Paying holds your seat. Your bus and pickup time are set once bookings close
+            for this sitting, and appear under My Bookings.
+          </p>
         </div>
+      ) : (
+        <p className="text-xs text-slate-400 mt-2">
+          See the fare before you commit — it is calculated from your pin to the centre.
+        </p>
       )}
     </div>
   );

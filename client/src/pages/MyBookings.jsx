@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import NextStep from '../components/NextStep';
 import { payBooking } from '../lib/pay';
 import { fmtDate, fmtDateTime, fmtRelative } from '../lib/format';
 
@@ -12,6 +13,16 @@ const statusColor = {
   assigned: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
 };
+
+/**
+ * "0 km from your home, about 1 min" is arithmetically true and reads like a
+ * bug. When somebody drops their pin on the bus stand itself, say that.
+ */
+function stopDistanceLabel(km, etaMin) {
+  if (km == null) return null;
+  if (km < 0.5) return 'practically on your doorstep';
+  return `${km} km from home, about ${etaMin} min away`;
+}
 
 export default function MyBookings() {
   const { user } = useAuth();
@@ -81,11 +92,31 @@ export default function MyBookings() {
     }
   }
 
-  if (loading) return <p>Loading…</p>;
-  if (bookings.length === 0) return <p>No bookings yet.</p>;
+  if (loading) return <p className="page-wide">Loading…</p>;
+
+  /*
+    An empty list is a fork in the road, not a full stop — the whole point of
+    landing here with nothing is that you have not booked yet.
+  */
+  if (bookings.length === 0)
+    return (
+      <div className="page-wide">
+        <h2 className="page-title mb-5">My Bookings</h2>
+        <div className="card p-8 text-center">
+          <h3 className="font-semibold text-slate-900">No tickets yet</h3>
+          <p className="muted mt-1.5 max-w-sm mx-auto">
+            Once you book a seat for an exam it appears here, with your pickup stop,
+            your QR ticket and live tracking on the day.
+          </p>
+          <Link to="/exams" className="btn-primary mt-5">
+            Browse exams →
+          </Link>
+        </div>
+      </div>
+    );
 
   return (
-    <div>
+    <div className="page-wide">
       <h2 className="page-title mb-5">My Bookings</h2>
       <div className="space-y-4">
         {bookings.map((b) => {
@@ -125,7 +156,7 @@ export default function MyBookings() {
                 <button
                   onClick={() => pay(b._id)}
                   disabled={paying === b._id}
-                  className="btn-primary mt-2"
+                  className="btn-primary mt-3"
                 >
                   {paying === b._id ? 'Processing…' : `Complete payment · ₹${b.fare}`}
                 </button>
@@ -133,10 +164,10 @@ export default function MyBookings() {
 
               {b.assignedStop?.name && (
                 <>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="text-sm text-slate-600 mt-2">
                     Pickup stop: <b>{b.assignedStop.name}</b>
-                    {b.stopDistanceKm != null &&
-                      ` — ${b.stopDistanceKm} km from your home, about ${b.stopEtaMin} min`}
+                    {stopDistanceLabel(b.stopDistanceKm, b.stopEtaMin) &&
+                      ` — ${stopDistanceLabel(b.stopDistanceKm, b.stopEtaMin)}`}
                   </p>
                   {/*
                     Say so when no catchment zone covered them. Reaching a stop
@@ -144,7 +175,7 @@ export default function MyBookings() {
                     road, and the student needs to plan for it.
                   */}
                   {b.stopInsideZone === false && (
-                    <p className="notice bg-amber-50 border-amber-200 text-amber-800 mt-1">
+                    <p className="notice bg-amber-50 border-amber-200 text-amber-800 mt-2">
                       Your home is outside every pickup zone, so this is simply the
                       nearest stop we have. You will need to get yourself there —
                       please plan for the {b.stopEtaMin} minutes.
@@ -154,36 +185,54 @@ export default function MyBookings() {
               )}
 
               {b.status === 'assigned' && b.bus && (
-                <div className="mt-3 bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <p>
-                    <b>{b.bus.label}</b>
+                <div className="notice bg-green-50 border-green-200 text-slate-700 mt-3 space-y-1">
+                  <p className="font-medium text-slate-900">
+                    {b.bus.label}
                     {b.bus.isOvernight && (
-                      <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                      <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-normal">
                         overnight — leaves the night before
                       </span>
                     )}
                   </p>
+                  {/*
+                    Two different clocks, and conflating them was the bug: the
+                    time the passenger is asked to be there is deliberately a
+                    few minutes before the bus is due, so a bus that has to
+                    wait at six stops does not make forty people late.
+                  */}
                   <p>
-                    Be at your stop by: <b>{fmtDateTime(b.pickupTime)}</b>
-                    {b.pickupTime && (
-                      <span className="text-slate-500"> ({fmtRelative(b.pickupTime)})</span>
+                    Be at your stop by:{' '}
+                    <b>{fmtDateTime(b.boardBy || b.pickupTime)}</b>
+                    {(b.boardBy || b.pickupTime) && (
+                      <span className="text-slate-500">
+                        {' '}
+                        ({fmtRelative(b.boardBy || b.pickupTime)})
+                      </span>
                     )}
                   </p>
-                  <p>Bus departs: <b>{fmtDateTime(b.bus.departureTime)}</b></p>
-                  <p>Reaches centre by: <b>{fmtDateTime(b.bus.arrivalTime)}</b></p>
-                  <p className="text-xs text-slate-500">All times shown in IST.</p>
-                  <Link
-                    to={`/track/${b._id}`}
-                    className="inline-block mt-2 text-brand hover:underline"
-                  >
-                    Track bus live
-                  </Link>
+                  <p>
+                    Bus reaches your stop: <b>{fmtDateTime(b.pickupTime)}</b>
+                  </p>
+                  <p>
+                    Reaches the exam centre by: <b>{fmtDateTime(b.bus.arrivalTime)}</b>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    All times shown in IST. Please do not be late — the bus cannot wait
+                    for one passenger without making everyone else late too.
+                  </p>
                 </div>
               )}
 
               {b.status === 'paid' && (
-                <p className="mt-2 text-sm text-slate-500">
-                  Paid — your bus and pickup time appear here once routing has run.
+                <p className="notice bg-slate-50 border-slate-200 text-slate-600 mt-3">
+                  Paid and confirmed. Your bus is formed once bookings close for this
+                  sitting — the departure time and a tracking link appear right here.
+                </p>
+              )}
+
+              {b.boarded && (
+                <p className="notice bg-green-50 border-green-200 text-green-800 mt-3">
+                  You are aboard. Nothing left to do but the exam.
                 </p>
               )}
 
@@ -202,40 +251,62 @@ export default function MyBookings() {
                 </p>
               )}
 
-              {b.status !== 'cancelled' && !b.boarded && (
-                <button
-                  onClick={() => cancel(b._id)}
-                  disabled={cancelling === b._id}
-                  className="mt-2 ml-0 text-xs text-slate-500 hover:text-red-600 hover:underline disabled:opacity-50"
-                >
-                  {cancelling === b._id ? 'Cancelling…' : 'Cancel this booking'}
-                </button>
-              )}
-
-              {isPaid && b.ticketToken && (
-                <div className="mt-3">
+              {/*
+                The row of things you can do with this ticket, together at the
+                bottom rather than scattered through the card.
+              */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 pt-4 border-t border-slate-100">
+                {isPaid && b.ticketToken && (
                   <button
                     onClick={() => setShowQR(showQR === b._id ? null : b._id)}
                     className="btn-dark btn-sm"
                   >
                     {showQR === b._id ? 'Hide ticket' : 'Show QR ticket'}
                   </button>
-                  {showQR === b._id && (
-                    <div className="mt-3 flex items-center gap-4 bg-slate-50 border rounded-lg p-3">
-                      <QRCodeSVG value={verifyUrl} size={128} />
-                      <div className="stat-label">
-                        <p>Show this at the bus door when you board.</p>
-                        <p className="mt-1">It is scanned and checked against your admit card.</p>
-                        <p className="mt-1 break-all text-slate-400">{verifyUrl}</p>
-                      </div>
-                    </div>
-                  )}
+                )}
+                {b.status === 'assigned' && b.bus && (
+                  <Link to={`/track/${b._id}`} className="text-sm text-brand hover:underline">
+                    Track bus live →
+                  </Link>
+                )}
+                {b.status !== 'cancelled' && !b.boarded && (
+                  <button
+                    onClick={() => cancel(b._id)}
+                    disabled={cancelling === b._id}
+                    className="text-xs text-slate-400 hover:text-red-600 hover:underline disabled:opacity-50 ml-auto"
+                  >
+                    {cancelling === b._id ? 'Cancelling…' : 'Cancel this booking'}
+                  </button>
+                )}
+              </div>
+
+              {showQR === b._id && (
+                <div className="mt-3 flex flex-wrap items-center gap-4 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <QRCodeSVG value={verifyUrl} size={128} />
+                  <div className="text-xs text-slate-500 min-w-0">
+                    <p>Show this at the bus door when you board.</p>
+                    <p className="mt-1">
+                      It is scanned and checked against your admit card.
+                    </p>
+                    <p className="mt-1 break-all text-slate-400">{verifyUrl}</p>
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      <NextStep
+        title="Also worth doing"
+        actions={[
+          { to: '/exams', label: 'Book another exam' },
+          { to: '/profile', label: 'Update my home location' },
+        ]}
+      >
+        Booking a second sitting reuses everything here — you only re-enter the roll
+        number, since each exam issues its own.
+      </NextStep>
     </div>
   );
 }

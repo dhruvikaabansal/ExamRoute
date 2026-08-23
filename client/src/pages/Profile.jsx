@@ -5,6 +5,15 @@ import { useAuth } from '../context/AuthContext';
 import LocationPicker from '../components/LocationPicker';
 import AddressSearch, { reverseGeocode } from '../components/AddressSearch';
 
+/**
+ * The two things the app needs to know about a person, and nothing else.
+ *
+ * Split into two cards because they are answers to different questions — who
+ * to call, and where to collect from — and because the location half needs a
+ * map, which in one long column pushed the save button so far down it looked
+ * like the form had no end. Grouping also makes the page legible at a glance:
+ * two blocks with headings rather than five stacked inputs.
+ */
 export default function Profile() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
@@ -17,7 +26,10 @@ export default function Profile() {
   });
   const [address, setAddress] = useState(user?.homeLocation?.address || '');
   const [msg, setMsg] = useState('');
+  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const hasPin = coords.lat !== '' && coords.lng !== '';
 
   /**
    * The pin is the source of truth — fare and pickup stop are both derived
@@ -38,7 +50,10 @@ export default function Profile() {
   function useMyLocation() {
     navigator.geolocation.getCurrentPosition(
       (pos) => pinMoved(pos.coords.latitude, pos.coords.longitude),
-      () => alert('Could not get location. Enter it manually.')
+      () => {
+        setFailed(true);
+        setMsg('Could not read your location. Search for your address instead.');
+      }
     );
   }
 
@@ -46,84 +61,130 @@ export default function Profile() {
     e.preventDefault();
     setBusy(true);
     setMsg('');
+    setFailed(false);
     try {
       const body = { phone };
-      if (coords.lat && coords.lng) {
+      if (hasPin) {
         body.coordinates = [Number(coords.lng), Number(coords.lat)];
         body.address = address;
       }
       const res = await api.patch('/auth/profile', body);
       setUser(res.data.user);
-      setMsg('Profile saved');
+      setMsg('Profile saved.');
       if (welcome) navigate('/exams'); // first-time setup done -> go book
     } catch {
-      setMsg('Could not save');
+      setFailed(true);
+      setMsg('Could not save your profile. Please try again.');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="max-w-lg">
+    <div className="page-mid">
       {welcome && (
-        <div className="notice bg-slate-50 border-slate-200 text-slate-600 mb-5">
-          Welcome to ExamRoute! Set your home location so we can pool you onto the
-          right bus. You'll only do this once.
+        <div className="notice bg-brand-soft/60 border-brand/20 text-brand-dark mb-6">
+          Welcome to ExamRoute. Set your home location so we can pool you onto the
+          right bus — you will only do this once.
         </div>
       )}
+
       <h2 className="page-title">My profile</h2>
       <p className="muted mt-1.5 mb-6">
         Saved once and reused for every exam you book. Your roll number is asked per
         exam, since each one issues its own.
       </p>
 
-      <form onSubmit={save} className="card p-6 space-y-5">
-        <div>
-          <label className="label">Name</label>
-          <input className="input mt-1 bg-slate-50 text-slate-500" value={user?.name || ''} disabled />
-        </div>
-        <div>
-          <label className="label">Phone</label>
-          <input
-            className="input mt-1"
-            placeholder="Contact number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="label">Home location</label>
-          <p className="text-xs text-slate-500 mb-2">
-            Search your address, or tap the map to drop the pin. The two stay in sync.
+      <form onSubmit={save} className="space-y-5">
+        <section className="card p-6">
+          <h3 className="font-semibold text-slate-900">Your details</h3>
+          <p className="muted mt-1 mb-5">How the operations team reaches you on the day.</p>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div>
+              <label className="label" htmlFor="profile-name">
+                Name
+              </label>
+              <input
+                id="profile-name"
+                className="input bg-slate-50 text-slate-500 cursor-not-allowed"
+                value={user?.name || ''}
+                disabled
+              />
+              {/* A greyed-out field with no explanation looks like a bug. */}
+              <p className="text-xs text-slate-400 mt-1.5">
+                Fixed — it is checked against your admit card when you board.
+              </p>
+            </div>
+
+            <div>
+              <label className="label" htmlFor="profile-phone">
+                Phone
+              </label>
+              <input
+                id="profile-phone"
+                className="input"
+                type="tel"
+                autoComplete="tel"
+                placeholder="10-digit mobile number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+              <p className="text-xs text-slate-400 mt-1.5">
+                Used only if the bus is delayed or you have not reached your stop.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="card p-6">
+          <h3 className="font-semibold text-slate-900">Home location</h3>
+          <p className="muted mt-1 mb-4">
+            Search your address or tap the map to drop the pin — the two stay in sync.
+            This is what decides your pickup stop and your fare.
           </p>
+
           <AddressSearch
             value={address}
             onChange={setAddress}
             onPick={(lat, lng) => setCoords({ lat, lng })}
           />
-          <div className="mt-2">
+
+          <div className="mt-3">
             <LocationPicker lat={coords.lat} lng={coords.lng} onChange={pinMoved} />
           </div>
-          <button type="button" onClick={useMyLocation} className="text-sm text-brand mt-2 hover:underline">
-            Use my current location
+
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+            <button
+              type="button"
+              onClick={useMyLocation}
+              className="text-sm text-brand hover:underline"
+            >
+              Use my current location
+            </button>
+            {hasPin ? (
+              <span className="text-xs text-slate-400">
+                Pin at {Number(coords.lat).toFixed(4)}, {Number(coords.lng).toFixed(4)}
+              </span>
+            ) : (
+              <span className="text-xs text-amber-700">No pin dropped yet</span>
+            )}
+          </div>
+        </section>
+
+        {/*
+          The save button and its result belong on the same line. Previously
+          the message appeared above the button, which moved the button down
+          the instant you pressed it.
+        */}
+        <div className="flex flex-wrap items-center gap-4">
+          <button type="submit" disabled={busy} className="btn-primary">
+            {busy ? 'Saving…' : 'Save profile'}
           </button>
-          {coords.lat !== '' && coords.lng !== '' && (
-            <p className="text-xs text-slate-400 mt-1">
-              Pin: {Number(coords.lat).toFixed(4)}, {Number(coords.lng).toFixed(4)}
-            </p>
+          {msg && (
+            <p className={`text-sm ${failed ? 'text-red-600' : 'text-green-700'}`}>{msg}</p>
           )}
         </div>
-
-        {msg && (
-          <p className={`text-sm ${msg === 'Could not save' ? 'text-red-600' : 'text-green-700'}`}>{msg}</p>
-        )}
-        <button
-          type="submit"
-          disabled={busy}
-          className="btn-primary"
-        >
-          {busy ? 'Saving…' : 'Save profile'}
-        </button>
       </form>
     </div>
   );

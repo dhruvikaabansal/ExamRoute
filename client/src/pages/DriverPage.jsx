@@ -21,6 +21,9 @@ export default function DriverPage() {
   const { driverToken } = useParams();
   const [bus, setBus] = useState(null);
   const [mode, setMode] = useState(null); // 'gps' | 'sim' | null
+  // A finished simulation used to just stop, leaving "Simulating route…" on
+  // screen forever with nothing moving — indistinguishable from a hang.
+  const [arrived, setArrived] = useState(false);
   const [last, setLast] = useState(null);
   const [pos, setPos] = useState(null);
   const [err, setErr] = useState('');
@@ -68,6 +71,7 @@ export default function DriverPage() {
 
   function startSim() {
     setErr('');
+    setArrived(false);
     setMode('sim');
     const path = buildPath();
     if (path.length < 2) return setErr('Not enough route points to simulate');
@@ -88,6 +92,8 @@ export default function DriverPage() {
       if (i >= steps.length) {
         clearInterval(timer.current);
         timer.current = null;
+        setMode(null);
+        setArrived(true);
         return;
       }
       const [lng, lat] = steps[i++];
@@ -105,17 +111,20 @@ export default function DriverPage() {
 
   if (err && !bus)
     return (
-      <div className="max-w-md mx-auto bg-red-50 border border-red-200 rounded-lg p-5">
-        <p className="text-red-700 font-medium">{err}</p>
-        <p className="text-sm text-red-600 mt-1">
-          Ask the operations team to send you a fresh link.
-        </p>
+      <div className="page-narrow">
+        <div className="notice bg-red-50 border-red-200 text-red-700 p-5">
+          <p className="font-medium">{err}</p>
+          <p className="mt-1">
+            Ask the operations team to send you a fresh link — rotating a link is one
+            click on their side, and the old one stops working the moment they do.
+          </p>
+        </div>
       </div>
     );
-  if (!bus) return <p>Loading…</p>;
+  if (!bus) return <p className="page-mid">Loading…</p>;
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="page-mid">
       <h2 className="page-title mb-1">Driver — {bus.label}</h2>
       <p className="text-sm text-slate-500">
         Share your live location so students can track the bus. Keep this page open
@@ -142,28 +151,42 @@ export default function DriverPage() {
         </p>
       </div>
 
-      <ol className="bg-white border rounded-lg p-4 mb-4 text-sm list-decimal list-inside space-y-1">
+      <ol className="card p-5 mb-4 text-sm list-decimal list-inside space-y-1">
         {(bus.route || []).map((stop, i) => (
           <li key={i}>
             {stop.name} — <b>{fmtTime(stop.pickupTime)}</b>
+            {/*
+              Passengers were told an earlier time than this. Showing the
+              driver both means an empty stop at the published minute is
+              read correctly: they are late, not you are early.
+            */}
+            {stop.boardBy && (
+              <span className="text-xs text-slate-400 ml-2">
+                passengers told {fmtTime(stop.boardBy)}
+              </span>
+            )}
           </li>
         ))}
+        <li className="list-none pt-1 mt-1 border-t border-slate-100 font-medium text-green-700">
+          {bus.center?.name || 'Exam centre'} — arrive by {fmtTime(bus.arrivalTime)}
+        </li>
       </ol>
 
-      <div className="bg-white border rounded-lg p-5">
+      <div className="card p-5">
+        {arrived && (
+          <p className="notice bg-green-50 border-green-200 text-green-800 mb-3">
+            Arrived at {bus.center?.name || 'the exam centre'}. The trip is done — you can
+            close this page.
+          </p>
+        )}
+
         {!mode ? (
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={startGps}
-              className="btn-primary"
-            >
+            <button onClick={startGps} className="btn-primary">
               Share my real GPS
             </button>
-            <button
-              onClick={startSim}
-              className="btn-dark"
-            >
-              Simulate driving (demo)
+            <button onClick={startSim} className="btn-outline">
+              {arrived ? 'Run the simulation again' : 'Simulate driving (demo)'}
             </button>
           </div>
         ) : (
@@ -193,8 +216,9 @@ export default function DriverPage() {
           height={320}
         />
       </div>
-      <p className="text-xs text-slate-400 mt-1">
-        Students see this same moving on their “Track bus live” page.
+      <p className="text-xs text-slate-400 mt-1.5">
+        Every passenger on this bus sees this same marker move, on their own “Track bus
+        live” page.
       </p>
     </div>
   );
