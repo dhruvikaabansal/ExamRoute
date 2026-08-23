@@ -30,7 +30,7 @@ export default function Exams() {
   if (exams.length === 0)
     return (
       <div className="bg-white border rounded-lg p-6 text-center">
-        <p className="text-4xl mb-2">🗓️</p>
+        <p className="text-4xl mb-2"></p>
         <h2 className="font-semibold">No exams listed yet</h2>
         <p className="text-sm text-slate-500 mt-1">
           Nothing has been scheduled for this state. Check back once the exam calendar

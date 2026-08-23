@@ -54,7 +54,7 @@ export default function Profile() {
       }
       const res = await api.patch('/auth/profile', body);
       setUser(res.data.user);
-      setMsg('Saved ✓');
+      setMsg('Profile saved');
       if (welcome) navigate('/exams'); // first-time setup done -> go book
     } catch {
       setMsg('Could not save');
@@ -66,21 +66,21 @@ export default function Profile() {
   return (
     <div className="max-w-lg">
       {welcome && (
-        <div className="notice bg-brand-soft/60 border-brand-soft text-brand-dark mb-4">
-          👋 Welcome to ExamRoute! Set your home location so we can pool you onto the
+        <div className="notice bg-slate-50 border-slate-200 text-slate-600 mb-5">
+          Welcome to ExamRoute! Set your home location so we can pool you onto the
           right bus. You'll only do this once.
         </div>
       )}
-      <h2 className="page-title mb-1">My Profile</h2>
-      <p className="text-sm text-slate-500 mb-4">
-        Save your home location and phone — we reuse these across every exam you book.
-        (Your exam roll number is asked per exam when you book, since each exam has its own.)
+      <h2 className="page-title">My profile</h2>
+      <p className="muted mt-1.5 mb-6">
+        Saved once and reused for every exam you book. Your roll number is asked per
+        exam, since each one issues its own.
       </p>
 
-      <form onSubmit={save} className="space-y-3 bg-white border rounded-lg p-5">
+      <form onSubmit={save} className="card p-6 space-y-5">
         <div>
           <label className="label">Name</label>
-          <input className="input mt-1 bg-slate-50" value={user?.name || ''} disabled />
+          <input className="input mt-1 bg-slate-50 text-slate-500" value={user?.name || ''} disabled />
         </div>
         <div>
           <label className="label">Phone</label>
@@ -93,7 +93,7 @@ export default function Profile() {
         </div>
         <div>
           <label className="label">Home location</label>
-          <p className="text-xs text-slate-400 mb-1">
+          <p className="text-xs text-slate-500 mb-2">
             Search your address, or tap the map to drop the pin. The two stay in sync.
           </p>
           <AddressSearch
@@ -105,7 +105,7 @@ export default function Profile() {
             <LocationPicker lat={coords.lat} lng={coords.lng} onChange={pinMoved} />
           </div>
           <button type="button" onClick={useMyLocation} className="text-sm text-brand mt-2 hover:underline">
-            📍 Use my current location
+            Use my current location
           </button>
           {coords.lat !== '' && coords.lng !== '' && (
             <p className="text-xs text-slate-400 mt-1">
@@ -114,7 +114,9 @@ export default function Profile() {
           )}
         </div>
 
-        {msg && <p className="text-sm text-green-700">{msg}</p>}
+        {msg && (
+          <p className={`text-sm ${msg === 'Could not save' ? 'text-red-600' : 'text-green-700'}`}>{msg}</p>
+        )}
         <button
           type="submit"
           disabled={busy}

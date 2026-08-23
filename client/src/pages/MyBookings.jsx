@@ -96,7 +96,7 @@ export default function MyBookings() {
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">{b.exam?.name}</h3>
                 <span className={`text-xs px-2 py-1 rounded ${statusColor[b.status]}`}>
-                  {b.boarded ? 'boarded ✓' : b.status}
+                  {b.boarded ? 'boarded' : b.status}
                 </span>
               </div>
               {/*
@@ -134,7 +134,7 @@ export default function MyBookings() {
               {b.assignedStop?.name && (
                 <>
                   <p className="text-sm text-slate-600 mt-1">
-                    🚏 Pickup stop: <b>{b.assignedStop.name}</b>
+                    Pickup stop: <b>{b.assignedStop.name}</b>
                     {b.stopDistanceKm != null &&
                       ` — ${b.stopDistanceKm} km from your home, about ${b.stopEtaMin} min`}
                   </p>
@@ -156,7 +156,7 @@ export default function MyBookings() {
               {b.status === 'assigned' && b.bus && (
                 <div className="mt-3 bg-green-50 border border-green-200 rounded p-3 text-sm">
                   <p>
-                    🚌 <b>{b.bus.label}</b>
+                    <b>{b.bus.label}</b>
                     {b.bus.isOvernight && (
                       <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
                         overnight — leaves the night before
@@ -176,14 +176,14 @@ export default function MyBookings() {
                     to={`/track/${b._id}`}
                     className="inline-block mt-2 text-brand hover:underline"
                   >
-                    📍 Track bus live
+                    Track bus live
                   </Link>
                 </div>
               )}
 
               {b.status === 'paid' && (
                 <p className="mt-2 text-sm text-slate-500">
-                  Paid ✓ — your bus &amp; pickup time appear here once routing is done.
+                  Paid — your bus and pickup time appear here once routing has run.
                 </p>
               )}
 
@@ -194,11 +194,11 @@ export default function MyBookings() {
                   }`}
                 >
                   {b.refundStatus === 'processed' &&
-                    `💸 ₹${b.refundAmount} refunded to your original payment method.`}
+                    `₹${b.refundAmount} refunded to your original payment method.`}
                   {b.refundStatus === 'pending' &&
-                    `💸 Refund of ₹${b.refundAmount} is being processed.`}
+                    `Refund of ₹${b.refundAmount} is being processed.`}
                   {b.refundStatus === 'failed' &&
-                    `⚠️ ₹${b.refundAmount} is owed to you — the automatic refund failed and our team is settling it manually.`}
+                    `₹${b.refundAmount} is owed to you — the automatic refund failed and our team is settling it manually.`}
                 </p>
               )}
 
@@ -218,7 +218,7 @@ export default function MyBookings() {
                     onClick={() => setShowQR(showQR === b._id ? null : b._id)}
                     className="btn-dark btn-sm"
                   >
-                    {showQR === b._id ? 'Hide ticket' : '🎫 Show QR ticket'}
+                    {showQR === b._id ? 'Hide ticket' : 'Show QR ticket'}
                   </button>
                   {showQR === b._id && (
                     <div className="mt-3 flex items-center gap-4 bg-slate-50 border rounded-lg p-3">

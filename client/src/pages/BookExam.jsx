@@ -222,7 +222,7 @@ export default function BookExam() {
       </div>
       <div className="flex flex-wrap items-center gap-2 mt-2">
         <button onClick={useMyLocation} className="text-sm text-brand hover:underline">
-          📍 Use my current location
+          Use my current location
         </button>
         <span className="text-xs text-slate-400">or jump to a city:</span>
         {PRESETS.map((p) => (

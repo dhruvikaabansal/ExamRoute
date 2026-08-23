@@ -42,7 +42,7 @@
   }
 
   .card-link {
-    @apply transition duration-200 hover:border-brand/30 hover:shadow-[0_6px_20px_-8px_rgb(219_39_119/0.25)];
+    @apply transition duration-200 hover:border-slate-300 hover:shadow-[0_6px_20px_-10px_rgb(15_23_42/0.18)];
   }
 
   .btn {

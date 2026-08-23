@@ -153,7 +153,7 @@ export default function Manifest() {
           <div key={stop.name} className="card overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b">
               <div>
-                <b className="text-sm">🚏 {stop.name}</b>
+                <b className="text-sm">{stop.name}</b>
                 {stop.pickupTime && (
                   <span className="text-xs text-slate-500 ml-2">
                     pickup {fmtTime(stop.pickupTime)}

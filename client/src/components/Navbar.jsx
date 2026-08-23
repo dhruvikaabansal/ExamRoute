@@ -30,7 +30,6 @@ export default function Navbar() {
     <nav className="bg-white border-b sticky top-0 z-[900]">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-xl">🚌</span>
           <span className="font-bold text-lg tracking-tight text-brand">ExamRoute</span>
         </Link>
 

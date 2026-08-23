@@ -44,7 +44,7 @@ export default function Confirmation() {
 
         {stop?.name ? (
           <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
-            <p>🚏 Your nearest pickup stop: <b>{stop.name}</b></p>
+            <p>Your nearest pickup stop: <b>{stop.name}</b></p>
             <p className="text-slate-600">
               About <b>{booking.stopDistanceKm} km</b> (~<b>{booking.stopEtaMin} min</b>) from your home.
             </p>

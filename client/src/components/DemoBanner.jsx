@@ -32,7 +32,7 @@ export default function DemoBanner() {
   if (!demo) return null;
 
   return (
-    <div className="bg-brand-soft/70 text-brand-dark border-b border-brand/10 text-xs sm:text-sm text-center px-4 py-2.5">
+    <div className="bg-amber-50 text-amber-900 border-b border-amber-200 text-xs sm:text-sm text-center px-4 py-2.5">
       <b>Demo deployment.</b> Payments are simulated — no card is charged and no real
       bus is booked. Everything else behaves exactly as it would in production.
     </div>

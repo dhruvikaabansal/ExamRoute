@@ -12,6 +12,17 @@ if (hasSmtp) {
     port: Number(process.env.SMTP_PORT || 587),
     secure: Number(process.env.SMTP_PORT) === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    /*
+     * Timeouts, because nodemailer has none worth the name by default.
+     *
+     * Plenty of hosts block or throttle outbound SMTP, and an unreachable
+     * mail server without a timeout does not fail — it hangs, holding the
+     * request open behind it. A mail send that cannot complete in ten
+     * seconds is not going to complete.
+     */
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
   });
 }
 

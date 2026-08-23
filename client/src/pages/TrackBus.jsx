@@ -49,7 +49,7 @@ export default function TrackBus() {
       />
       {!bus && (
         <p className="text-xs text-slate-400 mt-2">
-          Showing your planned route. The live 🚌 marker appears once the driver starts sharing.
+          Showing your planned route. The live marker appears once the driver starts sharing.
         </p>
       )}
     </div>

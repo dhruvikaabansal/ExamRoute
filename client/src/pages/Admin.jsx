@@ -176,7 +176,7 @@ export default function Admin() {
       */}
       {summary?.refundsFailed > 0 && (
         <div className="notice bg-red-50 border-red-200 text-red-700 mb-4">
-          ⚠️ {summary.refundsFailed} refund{summary.refundsFailed > 1 ? 's' : ''} failed at
+          {summary.refundsFailed} refund{summary.refundsFailed > 1 ? 's' : ''} failed at
           the gateway — ₹{summary.refundsOwed} still owed. These need settling manually.
         </div>
       )}
@@ -185,7 +185,7 @@ export default function Admin() {
       {warnings.length > 0 && (
         <ul className="notice bg-amber-50 border-amber-200 text-amber-800 mb-4">
           {warnings.map((w, i) => (
-            <li key={i}>⚠️ {w}</li>
+            <li key={i}>{w}</li>
           ))}
         </ul>
       )}
@@ -256,7 +256,7 @@ export default function Admin() {
                 to={`/manifest/${bus._id}`}
                 className="btn-dark btn-sm"
               >
-                📋 Boarding list
+                Boarding list
               </Link>
               <a
                 href={driverUrl(bus)}
@@ -264,7 +264,7 @@ export default function Admin() {
                 rel="noreferrer"
                 className="text-brand hover:underline"
               >
-                🚍 Open driver page
+                Open driver page
               </a>
               <button
                 onClick={async () => {

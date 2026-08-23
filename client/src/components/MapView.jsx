@@ -25,7 +25,7 @@ const icon = (color) =>
  */
 const busIcon = L.divIcon({
   className: 'bus-marker',
-  html: '<div class="bus-marker-inner">🚌</div>',
+  html: '<div class="bus-marker-inner"></div>',
   iconSize: [34, 34],
   iconAnchor: [17, 17],
   popupAnchor: [0, -18],
@@ -153,7 +153,7 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
 
         {livePosition && (
           <Marker position={[livePosition.lat, livePosition.lng]} icon={busIcon} zIndexOffset={1000}>
-            <Popup>🚌 Bus — live position</Popup>
+            <Popup>Bus — live position</Popup>
           </Marker>
         )}
       </MapContainer>

@@ -77,11 +77,25 @@ async function issueOtp(user) {
   user.otpLastSentAt = new Date();
   await user.save();
 
-  await sendMail({
+  /*
+   * Dispatched, not awaited.
+   *
+   * Storing the code is the part that must succeed before we answer — once it
+   * is saved, the code is valid whether or not the email got out. Delivery is
+   * a third party we do not control, and awaiting it means an SMTP server
+   * that is slow, blocked or simply unreachable holds the whole request open.
+   * That turned a sign-in on the deployed site into an endless spinner: the
+   * login path sends a fresh code for unverified accounts, so a hung mail
+   * connection hung the login.
+   *
+   * Failures are logged rather than surfaced. A student who does not receive
+   * the code can ask for another; one who cannot sign in at all has no options.
+   */
+  sendMail({
     to: user.email,
     subject: 'Your ExamRoute verification code',
     text: `Hi ${user.name}, your ExamRoute verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
-  });
+  }).catch((err) => console.warn('OTP email failed to send:', err.message));
 }
 
 // POST /api/auth/register  { name, email, password }

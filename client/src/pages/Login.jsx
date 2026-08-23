@@ -320,7 +320,6 @@ export default function Login() {
       <div className="bg-brand-soft/40 px-6 py-14 lg:px-14 flex items-center">
         <div className="w-full max-w-md mx-auto lg:mx-0">
           <div className="flex items-center gap-2 mb-8">
-            <span className="text-2xl">🚌</span>
             <span className="font-bold text-xl tracking-tight text-brand">ExamRoute</span>
           </div>
 
@@ -335,12 +334,12 @@ export default function Login() {
 
           <ul className="mt-8 space-y-4">
             {[
-              ['🚏', 'Pickup near home', 'Matched to the nearest stop in your area.'],
-              ['💸', 'Fares that fall with distance', 'The furthest journeys get the largest subsidy.'],
-              ['📍', 'Live bus tracking', 'Watch it move on the morning of the exam.'],
-            ].map(([icon, title, detail]) => (
+              ['Pickup near home', 'Matched to the nearest stop in your area.'],
+              ['Fares that fall with distance', 'The furthest journeys get the largest subsidy.'],
+              ['Live bus tracking', 'Watch it move on the morning of the exam.'],
+            ].map(([title, detail]) => (
               <li key={title} className="flex gap-3">
-                <span className="text-lg leading-none mt-0.5">{icon}</span>
+                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-brand shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{title}</p>
                   <p className="text-sm text-slate-500">{detail}</p>

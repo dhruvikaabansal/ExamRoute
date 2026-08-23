@@ -157,13 +157,13 @@ export default function DriverPage() {
               onClick={startGps}
               className="btn-primary"
             >
-              ▶ Share my real GPS
+              Share my real GPS
             </button>
             <button
               onClick={startSim}
               className="btn-dark"
             >
-              🧪 Simulate driving (demo)
+              Simulate driving (demo)
             </button>
           </div>
         ) : (
@@ -171,13 +171,13 @@ export default function DriverPage() {
             onClick={stop}
             className="btn bg-red-600 text-white hover:bg-red-700"
           >
-            ■ Stop
+            Stop
           </button>
         )}
 
         {mode && (
           <p className="text-sm text-green-700 mt-3">
-            📡 {mode === 'sim' ? 'Simulating route' : 'Broadcasting GPS'}…
+            {mode === 'sim' ? 'Simulating route' : 'Broadcasting GPS'}…
             {last && ` last update ${fmtTime(last)}`}
           </p>
         )}
@@ -194,7 +194,7 @@ export default function DriverPage() {
         />
       </div>
       <p className="text-xs text-slate-400 mt-1">
-        Students see this same 🚌 moving on their “Track bus live” page.
+        Students see this same moving on their “Track bus live” page.
       </p>
     </div>
   );

@@ -11,7 +11,6 @@ import { Link } from 'react-router-dom';
 export default function NotFound() {
   return (
     <div className="text-center py-16">
-      <p className="text-5xl mb-3">🚏</p>
       <h2 className="text-xl font-semibold">This stop isn&apos;t on the route</h2>
       <p className="text-slate-500 mt-2">
         The page you asked for doesn&apos;t exist. If you followed a ticket or driver
