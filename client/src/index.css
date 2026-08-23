@@ -49,12 +49,26 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  /**
+   * Primary actions are near-black, not brand-coloured.
+   *
+   * A saturated fill on every call to action turns the brand colour into
+   * wallpaper — it stops signalling anything because it is everywhere. Dark
+   * buttons read as deliberate at any size, sit calmly on white, and leave
+   * the pink to do a smaller job: the wordmark, a badge, the underline on the
+   * page you are currently looking at.
+   */
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-dark;
+    @apply btn bg-slate-900 text-white shadow-sm hover:bg-slate-800 active:bg-slate-900;
   }
 
   .btn-dark {
-    @apply btn bg-slate-900 text-white hover:bg-slate-700;
+    @apply btn-primary;
+  }
+
+  /* For the rare second action that still needs to read as branded. */
+  .btn-brand {
+    @apply btn bg-brand text-white hover:bg-brand-dark;
   }
 
   .btn-outline {
