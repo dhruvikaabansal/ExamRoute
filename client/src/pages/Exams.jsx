@@ -20,7 +20,7 @@ export default function Exams() {
 
   if (error)
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-5 text-red-700">{error}</div>
+      <div className="notice bg-red-50 border-red-200 text-red-700 p-5">{error}</div>
     );
 
   /*
@@ -46,7 +46,7 @@ export default function Exams() {
         the actual content down; the colour is worth more when it is reserved
         for the thing you want pressed.
       */}
-      <h2 className="text-2xl font-semibold tracking-tight">Upcoming exams</h2>
+      <h2 className="page-title">Upcoming exams</h2>
       <p className="text-sm text-slate-500 mt-1 mb-6">
         {exams.length} exams open for pooling across Rajasthan.
       </p>
@@ -70,7 +70,7 @@ export default function Exams() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold tracking-wide bg-brand-soft text-brand-dark px-2 py-0.5 rounded">
+                <span className="badge-brand">
                   {e.code}
                 </span>
                 {e.multiShift ? (
@@ -92,13 +92,13 @@ export default function Exams() {
               )}
 
               {closed ? (
-                <span className="mt-4 inline-block bg-slate-100 text-slate-400 text-sm px-4 py-2 rounded-lg cursor-not-allowed">
+                <span className="btn bg-slate-100 text-slate-400 mt-4 cursor-not-allowed">
                   Booking closed
                 </span>
               ) : (
                 <Link
                   to={`/book/${e._id}`}
-                  className="mt-4 inline-block bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-dark transition"
+                  className="btn-primary mt-4"
                 >
                   Book a seat
                 </Link>

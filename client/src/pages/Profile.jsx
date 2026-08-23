@@ -66,12 +66,12 @@ export default function Profile() {
   return (
     <div className="max-w-lg">
       {welcome && (
-        <div className="mb-4 bg-blue-50 border border-blue-200 rounded p-3 text-sm text-brand-dark">
+        <div className="notice bg-brand-soft/60 border-brand-soft text-brand-dark mb-4">
           👋 Welcome to ExamRoute! Set your home location so we can pool you onto the
           right bus. You'll only do this once.
         </div>
       )}
-      <h2 className="text-xl font-semibold mb-1">My Profile</h2>
+      <h2 className="page-title mb-1">My Profile</h2>
       <p className="text-sm text-slate-500 mb-4">
         Save your home location and phone — we reuse these across every exam you book.
         (Your exam roll number is asked per exam when you book, since each exam has its own.)
@@ -79,20 +79,20 @@ export default function Profile() {
 
       <form onSubmit={save} className="space-y-3 bg-white border rounded-lg p-5">
         <div>
-          <label className="block text-sm font-medium">Name</label>
-          <input className="w-full border rounded p-2 mt-1 bg-slate-50" value={user?.name || ''} disabled />
+          <label className="label">Name</label>
+          <input className="input mt-1 bg-slate-50" value={user?.name || ''} disabled />
         </div>
         <div>
-          <label className="block text-sm font-medium">Phone</label>
+          <label className="label">Phone</label>
           <input
-            className="w-full border rounded p-2 mt-1"
+            className="input mt-1"
             placeholder="Contact number"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium">Home location</label>
+          <label className="label">Home location</label>
           <p className="text-xs text-slate-400 mb-1">
             Search your address, or tap the map to drop the pin. The two stay in sync.
           </p>
@@ -118,7 +118,7 @@ export default function Profile() {
         <button
           type="submit"
           disabled={busy}
-          className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? 'Saving…' : 'Save profile'}
         </button>

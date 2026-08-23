@@ -111,13 +111,13 @@ export default function Admin() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Admin — Routing</h2>
+      <h2 className="page-title mb-5">Admin — Routing</h2>
 
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div>
-          <label className="block text-sm font-medium">Exam</label>
+          <label className="label">Exam</label>
           <select
-            className="border rounded p-2 mt-1"
+            className="input mt-1"
             value={examId}
             onChange={(e) => setExamId(e.target.value)}
           >
@@ -129,9 +129,9 @@ export default function Admin() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium">Date &amp; shift</label>
+          <label className="label">Date &amp; shift</label>
           <select
-            className="border rounded p-2 mt-1"
+            className="input mt-1"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
           >
@@ -145,7 +145,7 @@ export default function Admin() {
         <button
           onClick={runRouting}
           disabled={busy || !sessionId}
-          className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? 'Running…' : 'Run routing engine'}
         </button>
@@ -160,9 +160,9 @@ export default function Admin() {
             ['Assigned', summary.assigned],
             ['Boarded', summary.boarded],
           ].map(([label, value]) => (
-            <div key={label} className="bg-white border rounded-lg px-3 py-2">
-              <div className="text-lg font-semibold">{value}</div>
-              <div className="text-xs text-slate-500">{label}</div>
+            <div key={label} className="stat">
+              <div className="stat-value">{value}</div>
+              <div className="stat-label">{label}</div>
             </div>
           ))}
         </div>
@@ -175,7 +175,7 @@ export default function Admin() {
         surface somewhere a human looks, or it is simply lost.
       */}
       {summary?.refundsFailed > 0 && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3 mb-4">
+        <div className="notice bg-red-50 border-red-200 text-red-700 mb-4">
           ⚠️ {summary.refundsFailed} refund{summary.refundsFailed > 1 ? 's' : ''} failed at
           the gateway — ₹{summary.refundsOwed} still owed. These need settling manually.
         </div>
@@ -183,7 +183,7 @@ export default function Admin() {
 
       {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
       {warnings.length > 0 && (
-        <ul className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 mb-4">
+        <ul className="notice bg-amber-50 border-amber-200 text-amber-800 mb-4">
           {warnings.map((w, i) => (
             <li key={i}>⚠️ {w}</li>
           ))}
@@ -196,7 +196,7 @@ export default function Admin() {
         page looking like it failed to load.
       */}
       {buses.length === 0 && summary && (
-        <p className="text-sm text-slate-500 bg-white border rounded-lg p-4">
+        <p className="card-pad muted">
           No buses for this sitting yet. Routing only picks up bookings that are
           already paid — this sitting has {summary.paid} of {summary.total}.
         </p>
@@ -204,7 +204,7 @@ export default function Admin() {
 
       <div className="space-y-4">
         {buses.map((bus) => (
-          <div key={bus._id} className="bg-white border rounded-lg p-4 shadow-sm">
+          <div key={bus._id} className="card-pad">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-medium">
                 {bus.label}
@@ -254,7 +254,7 @@ export default function Admin() {
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <Link
                 to={`/manifest/${bus._id}`}
-                className="text-sm bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700"
+                className="btn-dark btn-sm"
               >
                 📋 Boarding list
               </Link>
@@ -271,13 +271,13 @@ export default function Admin() {
                   await copy(driverUrl(bus));
                   setCopied(bus._id);
                 }}
-                className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded"
+                className="btn-outline btn-sm"
               >
                 {copied === bus._id ? '✓ Copied' : 'Copy driver link'}
               </button>
               <button
                 onClick={() => rotate(bus._id)}
-                className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded"
+                className="btn-outline btn-sm"
                 title="Invalidates the current link and issues a new one"
               >
                 Rotate link

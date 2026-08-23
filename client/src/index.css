@@ -2,17 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-white text-slate-800;
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+
+  /* Hairlines everywhere. The browser default grey is heavier than it needs
+     to be and makes a page of cards look like a spreadsheet. */
+  * {
+    border-color: theme('colors.slate.200');
+  }
+
+  h1, h2, h3 {
+    @apply tracking-tight text-slate-900;
+  }
 }
 
-/*
- * Default border colour. Tailwind's default is slate-200 already, but the
- * app used bare `border` everywhere and a hairline reads calmer than the
- * browser default grey.
+/**
+ * The shared vocabulary.
+ *
+ * Before this there were fifteen different button styles in the app, because
+ * each one was written where it was needed. Pages assembled one at a time
+ * drift apart — different padding, different radius, different hover — and
+ * the result reads as unfinished even when every individual screen is fine.
+ *
+ * Defining the pieces once means a change to "what a button looks like" is a
+ * change in one place, and every new screen is consistent by default rather
+ * than by remembering.
  */
-* {
-  border-color: theme('colors.slate.200');
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-slate-200;
+  }
+
+  .card-pad {
+    @apply card p-5;
+  }
+
+  .card-link {
+    @apply transition hover:border-brand/40 hover:shadow-sm;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
+           text-sm font-medium transition
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-dark;
+  }
+
+  .btn-dark {
+    @apply btn bg-slate-900 text-white hover:bg-slate-700;
+  }
+
+  .btn-outline {
+    @apply btn bg-white border border-slate-200 text-slate-700
+           hover:border-slate-300 hover:bg-slate-50;
+  }
+
+  .btn-ghost {
+    @apply btn px-2 text-slate-500 hover:text-brand;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm
+           outline-none transition
+           placeholder:text-slate-400
+           focus:border-brand focus:ring-2 focus:ring-brand-soft;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold;
+  }
+
+  .badge-brand {
+    @apply badge bg-brand-soft text-brand-dark;
+  }
+
+  .stat {
+    @apply card px-4 py-3;
+  }
+
+  .stat-value {
+    @apply text-xl font-semibold text-slate-900;
+  }
+
+  .stat-label {
+    @apply text-xs text-slate-500 mt-0.5;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold;
+  }
+
+  .muted {
+    @apply text-sm text-slate-500;
+  }
+
+  .notice {
+    @apply rounded-lg border px-3 py-2 text-sm;
+  }
 }
 
 /*
@@ -44,4 +143,10 @@ body {
   border: 2px solid #db2777;
   border-radius: 9999px;
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+/* Leaflet draws its own panes at z-index 400+, which would otherwise sit on
+   top of the sticky navbar as you scroll a page full of maps. */
+.leaflet-container {
+  z-index: 0;
 }

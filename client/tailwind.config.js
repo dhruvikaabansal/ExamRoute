@@ -21,6 +21,9 @@ export default {
           soft: '#fce7f3',
         },
       },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       boxShadow: {
         // Lifts the search card off the hero behind it.
         card: '0 10px 30px -12px rgb(0 0 0 / 0.25)',

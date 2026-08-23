@@ -74,7 +74,7 @@ export default function Manifest() {
 
   if (error)
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-5 text-red-700">
+      <div className="notice bg-red-50 border-red-200 text-red-700 p-5">
         {error}
         <div className="mt-3">
           <Link to="/admin" className="text-brand hover:underline text-sm">
@@ -95,7 +95,7 @@ export default function Manifest() {
         ← Back to Admin
       </Link>
 
-      <h2 className="text-xl font-semibold mt-2">Boarding list — {bus.label}</h2>
+      <h2 className="page-title mt-2">Boarding list — {bus.label}</h2>
       <p className="text-sm text-slate-500">
         Departs <b>{fmtDateTime(bus.departureTime)}</b> · reaching {bus.center} by{' '}
         <b>{fmtDateTime(bus.arrivalTime)}</b>
@@ -114,9 +114,9 @@ export default function Manifest() {
           ['passengers still to board', totals.remaining],
           ['seats filled', `${totals.seats}/${bus.capacity}`],
         ].map(([label, value]) => (
-          <div key={label} className="bg-white border rounded-lg px-3 py-2">
-            <div className="text-lg font-semibold">{value}</div>
-            <div className="text-xs text-slate-500">{label}</div>
+          <div key={label} className="stat">
+            <div className="stat-value">{value}</div>
+            <div className="stat-label">{label}</div>
           </div>
         ))}
       </div>
@@ -130,27 +130,27 @@ export default function Manifest() {
       )}
 
       {allBoarded && (
-        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 mb-4">
+        <p className="notice bg-green-50 border-green-200 text-green-800 mb-4">
           Everyone is aboard. The bus can leave.
         </p>
       )}
 
       <input
-        className="w-full border rounded p-2 mb-4"
+        className="input mb-4"
         placeholder="Search by name or roll number…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
 
       {filtered.length === 0 && (
-        <p className="text-sm text-slate-500 bg-white border rounded-lg p-4">
+        <p className="card-pad muted">
           {query ? 'Nobody on this bus matches that.' : 'No passengers assigned to this bus.'}
         </p>
       )}
 
       <div className="space-y-4">
         {filtered.map((stop) => (
-          <div key={stop.name} className="bg-white border rounded-lg overflow-hidden">
+          <div key={stop.name} className="card overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b">
               <div>
                 <b className="text-sm">🚏 {stop.name}</b>
@@ -197,7 +197,7 @@ export default function Manifest() {
                     <button
                       onClick={() => board(p)}
                       disabled={working === p.bookingId}
-                      className="text-sm bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700 disabled:opacity-50"
+                      className="btn-dark btn-sm"
                     >
                       {working === p.bookingId ? 'Boarding…' : 'Mark boarded'}
                     </button>

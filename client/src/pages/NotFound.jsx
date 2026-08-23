@@ -19,7 +19,7 @@ export default function NotFound() {
       </p>
       <Link
         to="/"
-        className="inline-block mt-6 bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
+        className="btn-primary mt-6"
       >
         Back to safety
       </Link>

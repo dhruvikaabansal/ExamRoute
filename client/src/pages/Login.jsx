@@ -38,7 +38,7 @@ export default function Login() {
   }, []);
 
   const noEmailNotice = !emailWorks && (
-    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-2">
+    <p className="notice bg-amber-50 border-amber-200 text-amber-800 text-xs mt-2">
       Email delivery isn't configured on this deployment, so the code won't reach your
       inbox. {googleId ? 'Use “Continue with Google” instead.' : 'Ask the operator for the code.'}
     </p>
@@ -131,7 +131,7 @@ export default function Login() {
   if (mode === 'forgot') {
     return (
       <div className="max-w-md mx-auto mt-16">
-        <div className="bg-white border rounded-lg p-6 shadow-sm">
+        <div className="card p-6">
           <h2 className="text-lg font-semibold">Reset your password</h2>
           <p className="text-sm text-slate-500 mt-1">
             Enter your email and we'll send a 6-digit code.
@@ -139,9 +139,9 @@ export default function Login() {
           {noEmailNotice}
           <form onSubmit={submitForgot} className="mt-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label className="label">Email</label>
               <input
-                className="w-full border rounded p-2"
+                className="input"
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
@@ -153,7 +153,7 @@ export default function Login() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               disabled={busy}
-              className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {busy ? 'Sending…' : 'Send reset code'}
             </button>
@@ -172,7 +172,7 @@ export default function Login() {
   if (mode === 'reset') {
     return (
       <div className="max-w-md mx-auto mt-16">
-        <div className="bg-white border rounded-lg p-6 shadow-sm">
+        <div className="card p-6">
           <h2 className="text-lg font-semibold">Choose a new password</h2>
           <p className="text-sm text-slate-500 mt-1">
             Enter the code sent to <b>{otpEmail}</b> and a new password.
@@ -181,9 +181,9 @@ export default function Login() {
           {noEmailNotice}
           <form onSubmit={submitReset} className="mt-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium mb-1">6-digit code</label>
+              <label className="label">6-digit code</label>
               <input
-                className="w-full border rounded p-2 tracking-[0.5em] text-center text-lg"
+                className="input tracking-[0.5em] text-center text-lg"
                 placeholder="000000"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -194,9 +194,9 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">New password</label>
+              <label className="label">New password</label>
               <input
-                className="w-full border rounded p-2"
+                className="input"
                 type="password"
                 placeholder="At least 8 characters"
                 autoComplete="new-password"
@@ -208,7 +208,7 @@ export default function Login() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               disabled={busy}
-              className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {busy ? 'Saving…' : 'Set new password'}
             </button>
@@ -227,7 +227,7 @@ export default function Login() {
   if (mode === 'otp') {
     return (
       <div className="max-w-md mx-auto mt-16">
-        <div className="bg-white border rounded-lg p-6 shadow-sm">
+        <div className="card p-6">
           <h2 className="text-lg font-semibold">Verify your email</h2>
           <p className="text-sm text-slate-500 mt-1">
             Enter the 6-digit code sent to <b>{otpEmail}</b>.
@@ -236,9 +236,9 @@ export default function Login() {
           {noEmailNotice}
           <form onSubmit={submitOtp} className="mt-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium mb-1">6-digit code</label>
+              <label className="label">6-digit code</label>
               <input
-                className="w-full border rounded p-2 tracking-[0.5em] text-center text-lg"
+                className="input tracking-[0.5em] text-center text-lg"
                 placeholder="000000"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -251,7 +251,7 @@ export default function Login() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               disabled={busy}
-              className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {busy ? 'Verifying…' : 'Verify & continue'}
             </button>
@@ -326,9 +326,9 @@ export default function Login() {
         <form onSubmit={submit} className="space-y-3">
           {mode === 'register' && (
             <div>
-              <label className="block text-sm font-medium mb-1">Full name</label>
+              <label className="label">Full name</label>
               <input
-                className="w-full border rounded p-2"
+                className="input"
                 placeholder="Your name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -337,9 +337,9 @@ export default function Login() {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="label">Email</label>
             <input
-              className="w-full border rounded p-2"
+              className="input"
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
@@ -349,9 +349,9 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label className="label">Password</label>
             <input
-              className="w-full border rounded p-2"
+              className="input"
               type="password"
               placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'}
               autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
@@ -364,7 +364,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+            className="btn-primary w-full"
           >
             {busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in'}
           </button>

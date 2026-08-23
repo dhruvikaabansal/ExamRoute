@@ -116,7 +116,7 @@ export default function DriverPage() {
 
   return (
     <div className="max-w-xl mx-auto">
-      <h2 className="text-xl font-semibold mb-1">Driver — {bus.label}</h2>
+      <h2 className="page-title mb-1">Driver — {bus.label}</h2>
       <p className="text-sm text-slate-500">
         Share your live location so students can track the bus. Keep this page open
         during the trip.
@@ -125,7 +125,7 @@ export default function DriverPage() {
         No sign-in needed — this link works only for this bus.
       </p>
 
-      <div className="bg-white border rounded-lg p-4 mb-4 text-sm space-y-1">
+      <div className="card-pad mb-4 text-sm space-y-1">
         <p>
           Departs <b>{fmtDateTime(bus.departureTime)}</b>
           {bus.isOvernight && (
@@ -155,13 +155,13 @@ export default function DriverPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={startGps}
-              className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
+              className="btn-primary"
             >
               ▶ Share my real GPS
             </button>
             <button
               onClick={startSim}
-              className="bg-slate-800 text-white px-4 py-2 rounded hover:bg-slate-700"
+              className="btn-dark"
             >
               🧪 Simulate driving (demo)
             </button>
@@ -169,7 +169,7 @@ export default function DriverPage() {
         ) : (
           <button
             onClick={stop}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            className="btn bg-red-600 text-white hover:bg-red-700"
           >
             ■ Stop
           </button>

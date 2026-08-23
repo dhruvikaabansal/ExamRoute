@@ -86,13 +86,13 @@ export default function MyBookings() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
+      <h2 className="page-title mb-5">My Bookings</h2>
       <div className="space-y-4">
         {bookings.map((b) => {
           const verifyUrl = `${window.location.origin}/verify/${b.ticketToken}`;
           const isPaid = b.status === 'paid' || b.status === 'assigned';
           return (
-            <div key={b._id} className="bg-white border rounded-lg p-4 shadow-sm">
+            <div key={b._id} className="card-pad">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">{b.exam?.name}</h3>
                 <span className={`text-xs px-2 py-1 rounded ${statusColor[b.status]}`}>
@@ -125,7 +125,7 @@ export default function MyBookings() {
                 <button
                   onClick={() => pay(b._id)}
                   disabled={paying === b._id}
-                  className="mt-2 bg-brand text-white text-sm px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+                  className="btn-primary mt-2"
                 >
                   {paying === b._id ? 'Processing…' : `Complete payment · ₹${b.fare}`}
                 </button>
@@ -144,7 +144,7 @@ export default function MyBookings() {
                     road, and the student needs to plan for it.
                   */}
                   {b.stopInsideZone === false && (
-                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1">
+                    <p className="notice bg-amber-50 border-amber-200 text-amber-800 mt-1">
                       Your home is outside every pickup zone, so this is simply the
                       nearest stop we have. You will need to get yourself there —
                       please plan for the {b.stopEtaMin} minutes.
@@ -216,14 +216,14 @@ export default function MyBookings() {
                 <div className="mt-3">
                   <button
                     onClick={() => setShowQR(showQR === b._id ? null : b._id)}
-                    className="text-sm bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700"
+                    className="btn-dark btn-sm"
                   >
                     {showQR === b._id ? 'Hide ticket' : '🎫 Show QR ticket'}
                   </button>
                   {showQR === b._id && (
-                    <div className="mt-3 flex items-center gap-4 bg-slate-50 border rounded p-3">
+                    <div className="mt-3 flex items-center gap-4 bg-slate-50 border rounded-lg p-3">
                       <QRCodeSVG value={verifyUrl} size={128} />
-                      <div className="text-xs text-slate-500">
+                      <div className="stat-label">
                         <p>Show this at the bus door when you board.</p>
                         <p className="mt-1">It is scanned and checked against your admit card.</p>
                         <p className="mt-1 break-all text-slate-400">{verifyUrl}</p>

@@ -109,7 +109,7 @@ export default function VerifyTicket() {
               <button
                 onClick={board}
                 disabled={busy || !ticket.paid}
-                className="mt-3 w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+                className="btn-primary w-full mt-3"
               >
                 {busy ? 'Boarding…' : 'Confirm admit card & mark boarded'}
               </button>

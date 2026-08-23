@@ -35,7 +35,7 @@ export default function TrackBus() {
 
   return (
     <div className="max-w-xl mx-auto">
-      <h2 className="text-xl font-semibold mb-1">Live bus tracking</h2>
+      <h2 className="page-title mb-1">Live bus tracking</h2>
       <p className="text-sm text-slate-500 mb-3">
         {bus
           ? `Bus last seen ${fmtTime(data.lastLocationAt)}. Refreshes automatically.`

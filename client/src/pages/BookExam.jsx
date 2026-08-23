@@ -133,12 +133,12 @@ export default function BookExam() {
 
   return (
     <div className="max-w-lg">
-      <h2 className="text-xl font-semibold mb-1">Book your seat</h2>
+      <h2 className="page-title mb-1">Book your seat</h2>
       {exam && <p className="text-sm text-slate-500 mb-4">{exam.name}</p>}
 
-      <label className="block text-sm font-medium">Date &amp; shift</label>
+      <label className="label">Date &amp; shift</label>
       <select
-        className="w-full border rounded p-2 mt-1 mb-1"
+        className="input mt-1 mb-1"
         value={sessionId}
         onChange={(e) => setSessionId(e.target.value)}
       >
@@ -156,9 +156,9 @@ export default function BookExam() {
         </p>
       )}
 
-      <label className="block text-sm font-medium">Exam center</label>
+      <label className="label">Exam center</label>
       <select
-        className="w-full border rounded p-2 mt-1 mb-4"
+        className="input mt-1 mb-4"
         value={centerId}
         onChange={(e) => setCenterId(e.target.value)}
       >
@@ -169,7 +169,7 @@ export default function BookExam() {
         ))}
       </select>
 
-      <label className="block text-sm font-medium">
+      <label className="label">
         Your roll / application number for this exam <span className="text-red-600">*</span>
       </label>
       <p className="text-xs text-slate-400 mt-0.5">
@@ -177,7 +177,7 @@ export default function BookExam() {
         has to match. Each exam issues its own number.
       </p>
       <input
-        className={`w-full border rounded p-2 mt-1 ${
+        className={`input mt-1 ${
           rollTouched && rollNumberProblem() ? 'border-red-400 mb-1' : 'mb-4'
         }`}
         placeholder="e.g. 2601000123 (from your admit card)"
@@ -189,9 +189,9 @@ export default function BookExam() {
         <p className="text-xs text-red-600 mb-4">{rollNumberProblem()}</p>
       )}
 
-      <label className="block text-sm font-medium">Seats for parents / guardians</label>
+      <label className="label">Seats for parents / guardians</label>
       <select
-        className="w-full border rounded p-2 mt-1 mb-4"
+        className="input mt-1 mb-4"
         value={companions}
         onChange={(e) => {
           setCompanions(Number(e.target.value));
@@ -204,7 +204,7 @@ export default function BookExam() {
         <option value={3}>+3 companions (4 seats)</option>
       </select>
 
-      <label className="block text-sm font-medium">Your home location</label>
+      <label className="label">Your home location</label>
       <p className="text-xs text-slate-400 mb-1">
         Search your address, or tap the map to drop the pin. Your fare is calculated
         from this point, so it is worth getting right.
@@ -233,7 +233,7 @@ export default function BookExam() {
               setAddress(p.label);
               setQuote(null);
             }}
-            className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded"
+            className="btn-outline btn-sm"
           >
             {p.label}
           </button>
@@ -258,7 +258,7 @@ export default function BookExam() {
           <button
             onClick={bookAndPay}
             disabled={busy}
-            className="mt-2 bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+            className="btn-primary mt-2"
           >
             {busy ? 'Processing…' : `Pay ₹${quote.fare} & book`}
           </button>
