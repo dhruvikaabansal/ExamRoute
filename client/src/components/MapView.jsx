@@ -141,14 +141,14 @@ export default function MapView({ home, center, stops = [], route = [], bus, geo
               <Circle
                 center={toLatLng(s.coordinates)}
                 radius={geofenceKm * 1000}
-                pathOptions={{ color: '#2563eb', fillOpacity: 0.06, weight: 1 }}
+                pathOptions={{ color: '#db2777', fillOpacity: 0.06, weight: 1 }}
               />
             )}
           </div>
         ))}
 
         {routeLine.length > 1 && (
-          <Polyline positions={routeLine} pathOptions={{ color: '#2563eb', weight: 3 }} />
+          <Polyline positions={routeLine} pathOptions={{ color: '#db2777', weight: 4, opacity: 0.85 }} />
         )}
 
         {livePosition && (

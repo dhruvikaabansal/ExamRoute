@@ -32,9 +32,9 @@ export default function DemoBanner() {
   if (!demo) return null;
 
   return (
-    <div className="bg-amber-100 border-b border-amber-300 text-amber-900 text-sm text-center px-4 py-2">
-      <b>Demo deployment.</b> Payments are simulated — no card is charged and no
-      real bus is booked. Everything else works exactly as it would in production.
+    <div className="bg-slate-900 text-white text-xs sm:text-sm text-center px-4 py-2">
+      <b>Demo deployment.</b> Payments are simulated — no card is charged and no real
+      bus is booked. Everything else behaves exactly as it would in production.
     </div>
   );
 }

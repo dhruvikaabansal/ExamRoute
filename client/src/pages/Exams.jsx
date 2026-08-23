@@ -41,10 +41,13 @@ export default function Exams() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-1">Upcoming Exams (Rajasthan)</h2>
-      <p className="text-sm text-slate-500 mb-4">
-        {exams.length} exams currently open for pooling.
-      </p>
+      <div className="bg-gradient-to-r from-brand to-brand-light rounded-xl px-5 py-6 text-white mb-6">
+        <h2 className="text-2xl font-bold">Upcoming exams in Rajasthan</h2>
+        <p className="text-white/90 text-sm mt-1">
+          {exams.length} exams open for pooling. Pick one, drop your home pin, and we
+          work out the rest.
+        </p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {exams.map((e) => {
@@ -60,10 +63,12 @@ export default function Exams() {
           return (
             <div
               key={e._id}
-              className={`bg-white rounded-lg border p-4 shadow-sm ${closed ? 'opacity-70' : ''}`}
+              className={`bg-white rounded-xl border p-5 transition hover:shadow-card hover:-translate-y-0.5 ${
+                closed ? 'opacity-60' : ''
+              }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold bg-blue-100 text-brand px-2 py-1 rounded">
+                <span className="text-xs font-bold bg-brand-soft text-brand-dark px-2.5 py-1 rounded-full">
                   {e.code}
                 </span>
                 {e.multiShift ? (
@@ -85,15 +90,15 @@ export default function Exams() {
               )}
 
               {closed ? (
-                <span className="mt-3 inline-block bg-slate-200 text-slate-500 text-sm px-4 py-2 rounded cursor-not-allowed">
+                <span className="mt-4 inline-block bg-slate-100 text-slate-400 text-sm px-5 py-2.5 rounded-full cursor-not-allowed">
                   Booking closed
                 </span>
               ) : (
                 <Link
                   to={`/book/${e._id}`}
-                  className="mt-3 inline-block bg-brand text-white text-sm px-4 py-2 rounded hover:bg-brand-dark"
+                  className="mt-4 inline-block bg-brand text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-brand-dark transition"
                 >
-                  Book a seat
+                  Book a seat →
                 </Link>
               )}
             </div>

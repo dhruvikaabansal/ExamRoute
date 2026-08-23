@@ -41,7 +41,7 @@ export default function App() {
     <div className="min-h-screen">
       <DemoBanner />
       <Navbar />
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         {/*
           Keyed on the path so navigating away from a crashed screen clears the
           error, rather than leaving the boundary stuck showing it forever.
