@@ -47,22 +47,39 @@ const LAST = [
   'Rathore', 'Choudhary', 'Bishnoi', 'Khan', 'Soni', 'Yadav',
 ];
 
-// Feeder towns per exam centre: [town, [lng, lat], number of students]
+/**
+ * Feeder towns per exam centre: [town, [lng, lat], number of students].
+ *
+ * Chosen to sit at distinct compass bearings around Jaipur, because that is
+ * what makes the clustering visible. Two buses only demonstrate that a split
+ * happened; several buses, each serving one corridor out of the city, show
+ * *why* the split fell where it did — and that is the part worth watching.
+ *
+ * The Jaipur town itself is included on purpose: those students live at the
+ * exam centre, have no meaningful bearing, and are the case that broke the
+ * sweep before they were handled separately as fillers.
+ */
 const COHORTS = [
   {
     centerCity: 'Jaipur',
     towns: [
-      ['Jaipur', [75.7873, 26.9124], 14],
-      ['Sikar', [75.1398, 27.6094], 9],
-      ['Dausa', [76.3344, 26.8894], 7],
-      ['Alwar', [76.6100, 27.5530], 8],
+      ['Jaipur', [75.7873, 26.9124], 18], // at the centre — the fillers
+      ['Sikar', [75.1398, 27.6094], 13], // north-west
+      ['Jhunjhunu', [75.3995, 28.1289], 9], // north
+      ['Alwar', [76.61, 27.553], 12], // north-east
+      ['Dausa', [76.3344, 26.8894], 9], // east
+      ['Sawai Madhopur', [76.355, 25.993], 9], // south-east
+      ['Bundi', [75.6499, 25.4305], 8], // south
+      ['Ajmer', [74.6399, 26.4499], 11], // south-west
+      ['Nagaur', [73.7339, 27.202], 9], // west
     ],
   },
   {
     centerCity: 'Jodhpur',
     towns: [
-      ['Jodhpur', [73.0243, 26.2389], 6],
-      ['Bikaner', [73.3119, 28.0229], 5],
+      ['Jodhpur', [73.0243, 26.2389], 8],
+      ['Bikaner', [73.3119, 28.0229], 7],
+      ['Pali', [73.3234, 25.7711], 6],
     ],
   },
 ];

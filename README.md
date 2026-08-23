@@ -81,7 +81,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 ```bash
 npm run seed        # 8 exams, 25 sittings, 22 centres, 44 pickup stops
-npm run seed:demo   # ~49 paid demo students, sized to force a capacity split
+npm run seed:demo   # ~120 paid demo students across 12 feeder towns
 ```
 
 ### 5. Run
@@ -97,7 +97,7 @@ npm run dev
 
 1. **Sign up** with email + password. The OTP is printed to the server console (no SMTP needed). Use your `ADMIN_EMAIL` so you get admin rights.
 2. **Book a seat** — pick a sitting, drop a home pin, choose companions, see the subsidised fare, pay (mock mode confirms instantly).
-3. **Admin → Run routing engine** on the first JEE sitting the demo seeded. Jaipur has 59 seats against a 40-seat capacity, so it splits into two buses — and the split follows direction, with Alwar and Dausa on one and Sikar on the other.
+3. **Admin → Run routing engine** on the first JEE sitting the demo seeded. Jaipur draws ~150 seats against a 40-seat capacity, so it forms four buses — and each one serves a corridor out of the city rather than an arbitrary group: the southern towns together, the eastern together, the western together, and one bus for the students who live at the centre.
 4. **Copy a driver link** from the bus card and open it in a private window — no login. Hit **Simulate driving**.
 5. **Track bus live** from the student's My Bookings page and watch the bus move.
 6. **Show QR ticket**, open the verify link, and mark the passenger boarded.

@@ -70,9 +70,9 @@ larger, then trim hard.
 | 0:00–0:15 | Exam list → pick a JEE sitting | "Pick your exam date and shift" |
 | 0:15–0:40 | Drop a home pin, add a companion, fare appears | "Fare is distance-based — and the subsidy grows the further you travel" |
 | 0:40–0:55 | Pay, confirmation with pickup stop + map | "Nearest pickup stop, geofenced to your area" |
-| 0:55–1:30 | Admin → Run routing engine, buses appear | "55 seats, 40-seat buses — the engine splits them and orders every stop" |
+| 0:55–1:30 | Admin → Run routing engine, buses appear | "150 seats, 40-seat buses — four routes, each serving one corridor out of the city" |
 
-> **Pick the right sitting or nothing appears.** The demo seed puts all ~49
+> **Pick the right sitting or nothing appears.** The demo seed puts all ~120
 > paid students on the **first JEE sitting** — Shift 1, 9 AM, the earliest
 > date in the list — travelling to the **Jaipur** centre. Selecting any other
 > exam or shift gives you "No paid bookings to route", which looks like a
