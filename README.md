@@ -42,7 +42,7 @@ Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments
 
 **Live bus tracking.** The driver opens a link that shares the bus's GPS; students watch it move on a live map. The driver needs no account — see [the security model](#security-model).
 
-**Admin.** Run routing per date and shift, see every bus with its route, seat load and driver link, and board passengers by scanning their ticket.
+**Admin.** Run routing per date and shift, see every bus with its route, seat load and driver link, and work a **boarding list** per bus — every passenger grouped by pickup stop in the order the bus visits them, ticked off as they arrive, so at departure you know exactly who has not shown up.
 
 > **On identity verification (worth raising before you are asked):** no third party can *digitally* confirm that someone is a genuine exam candidate. Only NTA can, and there is no public API. The only real digital path is **DigiLocker**, which requires partner-organisation onboarding that a student project cannot obtain. So ExamRoute uses honest layers instead: email OTP (deters throwaway signups), real payment (skin in the game), and a **human admit-card check at boarding** via the QR. The app verifies the *ticket*; a person verifies the *person*.
 

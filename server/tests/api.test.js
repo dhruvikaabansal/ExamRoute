@@ -519,7 +519,8 @@ describe.skipIf(!dbReady)('roles and access control', () => {
     const booking = await makePaidBooking({
       user: student, exam, session, center, coordinates: JAIPUR,
     });
-    return { center, exam, session, student, booking };
+    const staff = await makeUser({ role: 'admin' });
+    return { center, exam, session, student, booking, staff };
   }
 
   it('lets a student read their own ticket', async () => {
@@ -593,6 +594,48 @@ describe.skipIf(!dbReady)('roles and access control', () => {
   it('keeps a student out of admin routing', async () => {
     const { session, student } = await boardingSetup();
     const res = await asUser(request(app).post(`/api/admin/route/${session._id}`), student);
+    expect(res.status).toBe(403);
+  });
+
+  /**
+   * Scanning tickets one at a time answers "is this person allowed on?" but
+   * never "who is still missing?" — which is the question that decides whether
+   * the bus waits.
+   */
+  it('lists everyone on a bus, grouped by pickup stop, with who is still missing', async () => {
+    const { session, staff } = await boardingSetup();
+    const { buses } = await runRoutingForSession(session._id);
+    const bus = buses[0];
+
+    const res = await asUser(request(app).get(`/api/admin/bus/${bus._id}/manifest`), staff);
+
+    expect(res.status).toBe(200);
+    expect(res.body.totals.passengers).toBeGreaterThan(0);
+    expect(res.body.totals.boarded).toBe(0);
+    expect(res.body.totals.remaining).toBe(res.body.totals.passengers);
+    expect(res.body.stops.length).toBeGreaterThan(0);
+    expect(res.body.stops[0].passengers[0].rollNumber).toBeTruthy();
+  });
+
+  it('counts a passenger as boarded on the manifest once they board', async () => {
+    const { session, staff, booking } = await boardingSetup();
+    const { buses } = await runRoutingForSession(session._id);
+    const bus = buses[0];
+
+    await asUser(request(app).post(`/api/tickets/${booking.ticketToken}/board`), staff);
+    const res = await asUser(request(app).get(`/api/admin/bus/${bus._id}/manifest`), staff);
+
+    expect(res.body.totals.boarded).toBe(1);
+    expect(res.body.totals.remaining).toBe(res.body.totals.passengers - 1);
+  });
+
+  it('keeps students out of the boarding list — it carries phone numbers', async () => {
+    const { session, student } = await boardingSetup();
+    const { buses } = await runRoutingForSession(session._id);
+    const res = await asUser(
+      request(app).get(`/api/admin/bus/${buses[0]._id}/manifest`),
+      student
+    );
     expect(res.status).toBe(403);
   });
 

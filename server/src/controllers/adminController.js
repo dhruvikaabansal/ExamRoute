@@ -76,6 +76,81 @@ export async function getBus(req, res) {
 }
 
 /**
+ * GET /api/admin/bus/:busId/manifest — the boarding list for one bus.
+ *
+ * Scanning tickets one at a time answers "is this person allowed on?" but
+ * never "who is still missing?". Real operators board from a manifest: the
+ * whole list, ticked off as people arrive, so at departure you know that
+ * three of forty have not shown up and can decide whether to wait.
+ *
+ * Grouped by pickup stop and ordered the way the bus drives, because that is
+ * the order boarding actually happens in — a flat alphabetical list would be
+ * useless standing at the second stop of six.
+ */
+export async function busManifest(req, res) {
+  const bus = await Bus.findById(assertObjectId(req.params.busId, 'busId'))
+    .populate('center')
+    .populate({ path: 'passengers', populate: { path: 'user', select: 'name phone' } });
+  if (!bus) throw ApiError.notFound('Bus not found');
+
+  const passengers = (bus.passengers || []).filter((b) => b.status !== 'cancelled');
+
+  const toRow = (b) => ({
+    bookingId: b._id,
+    ticketToken: b.ticketToken,
+    name: b.user?.name || 'Unknown',
+    // Staff need to reach a passenger who has not turned up; this endpoint is
+    // admin-only, so the number goes no further than the people running the trip.
+    phone: b.user?.phone || null,
+    rollNumber: b.rollNumber,
+    seats: b.seats,
+    stopName: b.assignedStop?.name || 'Unassigned',
+    pickupTime: b.pickupTime || null,
+    boarded: Boolean(b.boarded),
+    boardedAt: b.boardedAt || null,
+  });
+
+  // One group per stop, in the order the bus visits them.
+  const order = new Map((bus.route || []).map((stop, i) => [stop.name, i]));
+  const groups = new Map();
+  for (const booking of passengers) {
+    const row = toRow(booking);
+    if (!groups.has(row.stopName)) groups.set(row.stopName, []);
+    groups.get(row.stopName).push(row);
+  }
+
+  const stops = [...groups.entries()]
+    .map(([name, rows]) => ({
+      name,
+      pickupTime: bus.route?.find((s) => s.name === name)?.pickupTime || null,
+      seats: rows.reduce((n, r) => n + (r.seats || 1), 0),
+      boarded: rows.filter((r) => r.boarded).length,
+      passengers: rows.sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => (order.get(a.name) ?? 999) - (order.get(b.name) ?? 999));
+
+  res.json({
+    bus: {
+      id: bus._id,
+      label: bus.label,
+      capacity: bus.capacity,
+      seatsUsed: bus.seatsUsed,
+      departureTime: bus.departureTime,
+      arrivalTime: bus.arrivalTime,
+      isOvernight: bus.isOvernight,
+      center: bus.center ? `${bus.center.name}, ${bus.center.city}` : null,
+    },
+    totals: {
+      passengers: passengers.length,
+      seats: passengers.reduce((n, b) => n + (b.seats || 1), 0),
+      boarded: passengers.filter((b) => b.boarded).length,
+      remaining: passengers.filter((b) => !b.boarded).length,
+    },
+    stops,
+  });
+}
+
+/**
  * POST /api/admin/bus/:busId/rotate-driver-token
  *
  * Capability links are shared over WhatsApp and printed on paper, so they

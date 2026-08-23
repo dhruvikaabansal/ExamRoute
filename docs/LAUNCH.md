@@ -80,7 +80,7 @@ larger, then trim hard.
 
 | 1:30–1:50 | Driver link in a private window, Simulate driving | "The driver needs no account — one link, one bus" |
 | 1:50–2:10 | Student's Track bus page, bus moving | "Students watch it move in real time" |
-| 2:10–2:30 | QR ticket → board the passenger | "The app verifies the ticket. A human verifies the person." |
+| 2:10–2:30 | Boarding list → tick a passenger aboard | "Staff board from a manifest, like a real operator — you can see who is still missing" |
 
 The routing-engine moment is the one to hold on. Everything else is a booking
 flow anyone has seen; the bus split is the part that shows engineering.

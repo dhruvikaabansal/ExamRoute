@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/client';
 import MapView from '../components/MapView';
 import { fmtDate, fmtDateTime, fmtShort } from '../lib/format';
@@ -251,6 +252,12 @@ export default function Admin() {
               old one — the recovery path for a link that leaks.
             */}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <Link
+                to={`/manifest/${bus._id}`}
+                className="text-sm bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700"
+              >
+                📋 Boarding list
+              </Link>
               <a
                 href={driverUrl(bus)}
                 target="_blank"

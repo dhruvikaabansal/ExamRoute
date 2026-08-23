@@ -84,6 +84,7 @@ router.post('/admin/route/:sessionId', protect, adminOnly, admin.runRouting);
 router.get('/admin/buses/:sessionId', protect, adminOnly, admin.busesForSession);
 router.get('/admin/bookings/:sessionId', protect, adminOnly, admin.bookingsForSession);
 router.get('/admin/bus/:busId', protect, adminOnly, admin.getBus);
+router.get('/admin/bus/:busId/manifest', protect, adminOnly, admin.busManifest);
 router.post(
   '/admin/bus/:busId/rotate-driver-token',
   protect,

@@ -25,6 +25,7 @@ const Admin = lazy(() => import('./pages/Admin'));
 const VerifyTicket = lazy(() => import('./pages/VerifyTicket'));
 const DriverPage = lazy(() => import('./pages/DriverPage'));
 const TrackBus = lazy(() => import('./pages/TrackBus'));
+const Manifest = lazy(() => import('./pages/Manifest'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function Protected({ children }) {
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/track/:bookingId" element={<Protected><TrackBus /></Protected>} />
             <Route path="/profile" element={<Protected><Profile /></Protected>} />
             <Route path="/admin" element={<Protected><Admin /></Protected>} />
+            <Route path="/manifest/:busId" element={<Protected><Manifest /></Protected>} />
             {/*
               The driver page is deliberately NOT wrapped in <Protected>: it is
               authorised by the capability token in the URL, so a driver needs no
