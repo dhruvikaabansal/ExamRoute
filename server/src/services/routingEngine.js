@@ -48,13 +48,32 @@ export function computeArrivalTarget(session, bufferMin) {
   return recommended.getTime() < latestSafe.getTime() ? recommended : latestSafe;
 }
 
-/** Builds the per-stop schedule for a route, working forward from departure. */
-export function buildSchedule(orderedStops, legsMin, departureTime) {
+/**
+ * Builds the per-stop schedule for a route, working forward from departure.
+ *
+ * Two times per stop, deliberately:
+ *   - `pickupTime` is when the bus is there. The driver and the boarding list
+ *     work from this, and it is what the arithmetic of the route produces.
+ *   - `boardBy` is when passengers are told to be there, a few minutes
+ *     earlier. Publishing the bus's own time as the passenger's time means
+ *     the schedule only holds if nobody is ever thirty seconds late — and a
+ *     bus that waits at each of six stops arrives late for all forty people
+ *     aboard, including the ones who were punctual.
+ *
+ * The buffer shifts nothing else: departure, legs and arrival are unchanged.
+ * It is a promise made to the passenger, not slack added to the route.
+ */
+export function buildSchedule(orderedStops, legsMin, departureTime, boardingBufferMin = 0) {
   let cumulative = 0;
   return orderedStops.map((stop, i) => {
     const pickupTime = addMinutes(departureTime, cumulative);
     cumulative += legsMin[i] || 0;
-    return { name: stop.name, coordinates: stop.coordinates, pickupTime };
+    return {
+      name: stop.name,
+      coordinates: stop.coordinates,
+      pickupTime,
+      boardBy: addMinutes(pickupTime, -boardingBufferMin),
+    };
   });
 }
 
@@ -70,12 +89,15 @@ export async function runRoutingForSession(sessionId) {
 
   const capacity = Number(process.env.BUS_CAPACITY || 40);
   const bufferMin = Number(process.env.SAFETY_BUFFER_MIN || 60);
+  // How early passengers are asked to be at their stop. Ten minutes is what
+  // intercity operators actually print on a ticket.
+  const boardingBufferMin = Number(process.env.BOARDING_BUFFER_MIN || 10);
 
   // Clean slate — drop old buses and un-assign their passengers.
   await Bus.deleteMany({ session: sessionId });
   await Booking.updateMany(
     { session: sessionId, status: 'assigned' },
-    { $set: { status: 'paid' }, $unset: { bus: '', pickupTime: '' } }
+    { $set: { status: 'paid' }, $unset: { bus: '', pickupTime: '', boardBy: '' } }
   );
 
   const arrivalTime = computeArrivalTarget(session, bufferMin);
@@ -132,7 +154,7 @@ export async function runRoutingForSession(sessionId) {
       );
 
       const departureTime = addMinutes(arrivalTime, -totalMin);
-      const route = buildSchedule(order, legsMin, departureTime);
+      const route = buildSchedule(order, legsMin, departureTime, boardingBufferMin);
 
       const bus = await Bus.create({
         exam: session.exam,
@@ -154,7 +176,7 @@ export async function runRoutingForSession(sessionId) {
       });
 
       // One round trip instead of a save() per passenger.
-      const pickupByStop = new Map(route.map((r) => [r.name, r.pickupTime]));
+      const stopTimes = new Map(route.map((r) => [r.name, r]));
       await Booking.bulkWrite(
         clusterBookings.map((b) => ({
           updateOne: {
@@ -163,7 +185,10 @@ export async function runRoutingForSession(sessionId) {
               $set: {
                 bus: bus._id,
                 status: 'assigned',
-                pickupTime: pickupByStop.get(b._stop.name) ?? departureTime,
+                pickupTime: stopTimes.get(b._stop.name)?.pickupTime ?? departureTime,
+                boardBy:
+                  stopTimes.get(b._stop.name)?.boardBy ??
+                  addMinutes(departureTime, -boardingBufferMin),
                 assignedStop: {
                   name: b._stop.name,
                   coordinates: b._stop.location.coordinates,

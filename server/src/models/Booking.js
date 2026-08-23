@@ -85,7 +85,13 @@ const bookingSchema = new mongoose.Schema(
 
     // filled by the routing engine
     bus: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
+    // When the bus reaches this student's stop.
     pickupTime: { type: Date },
+    // When the student is told to be standing there — pickupTime minus the
+    // boarding buffer. Kept as its own field rather than derived in the UI so
+    // the number on the ticket, the boarding list and the reminder email are
+    // all the same number, decided once.
+    boardBy: { type: Date },
 
     // QR e-ticket + boarding
     ticketToken: { type: String, index: true },

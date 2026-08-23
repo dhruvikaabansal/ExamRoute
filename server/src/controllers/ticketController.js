@@ -33,6 +33,9 @@ export async function getTicket(req, res) {
     bus: booking.bus?.label || null,
     pickupTime: booking.pickupTime || null,
     pickupTimeLabel: booking.pickupTime ? formatIst(booking.pickupTime) : null,
+    // What the passenger was actually told — a few minutes before the bus.
+    boardBy: booking.boardBy || null,
+    boardByLabel: booking.boardBy ? formatIst(booking.boardBy) : null,
     status: booking.status,
     paid: ['paid', 'assigned'].includes(booking.status) || booking.boarded,
     boarded: booking.boarded,

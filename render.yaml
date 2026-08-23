@@ -69,6 +69,8 @@ services:
         value: 40
       - key: SAFETY_BUFFER_MIN
         value: 60
+      - key: BOARDING_BUFFER_MIN
+        value: 10
       - key: GEOFENCE_RADIUS_KM
         value: 5
       - key: FULL_REFUND_HOURS

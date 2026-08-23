@@ -220,6 +220,7 @@ export async function cancelBooking(req, res) {
   booking.status = 'cancelled';
   booking.bus = undefined;
   booking.pickupTime = undefined;
+  booking.boardBy = undefined;
   booking.refundStatus = wasPaid && quote.amount > 0 ? 'pending' : 'none';
   booking.refundAmount = quote.amount;
   await booking.save();

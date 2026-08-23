@@ -11,6 +11,7 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-that-is-long-enough-for-testing-123456';
 process.env.BUS_CAPACITY = process.env.BUS_CAPACITY || '40';
 process.env.SAFETY_BUFFER_MIN = process.env.SAFETY_BUFFER_MIN || '60';
+process.env.BOARDING_BUFFER_MIN = process.env.BOARDING_BUFFER_MIN || '10';
 process.env.GEOFENCE_RADIUS_KM = process.env.GEOFENCE_RADIUS_KM || '5';
 process.env.MAX_SUBSIDY_PCT = process.env.MAX_SUBSIDY_PCT || '50';
 process.env.SUBSIDY_PER_25KM = process.env.SUBSIDY_PER_25KM || '5';

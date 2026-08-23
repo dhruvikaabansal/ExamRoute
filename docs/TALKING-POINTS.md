@@ -207,6 +207,35 @@ project the day before a demo to make a scanner quiet.
 
 ---
 
+## 6d. Two clocks, and why the schedule has slack in it
+
+A small detail, but it is the kind that separates "I built a booking form"
+from "I thought about the operation". Worth volunteering if the conversation
+turns to the routing output.
+
+> Every stop carries two times. `pickupTime` is when the bus is physically
+> there — that falls straight out of the route arithmetic, and it is what the
+> driver and the boarding list work from. `boardBy` is what the passenger is
+> told, and it is deliberately ten minutes earlier.
+
+> The first version published one number for both, so a student's ticket said
+> "be at your stop by 07:10" and "bus departs 07:10". That schedule only holds
+> if nobody is ever thirty seconds late. And the cost of waiting is not paid by
+> the person who is late — a bus that waits two minutes at each of six stops
+> reaches the centre twelve minutes behind, for all forty people aboard, on the
+> morning of an exam with a hard gate-close time.
+
+> The buffer is a promise to the passenger, not slack in the route: departure,
+> leg durations and arrival are untouched. There is a test pinning exactly
+> that, because the obvious wrong implementation is to subtract the buffer from
+> the departure time, which makes the whole schedule drift ten minutes earlier
+> every time routing is re-run.
+
+Configurable as `BOARDING_BUFFER_MIN`, because the right number is an
+operational decision, not a code one.
+
+---
+
 ## 7. Security decisions, briefly
 
 Have one sentence ready for each:

@@ -60,6 +60,33 @@ describe('schedule construction', () => {
     expect(schedule[1].pickupTime.getTime()).toBe(addMinutes(departure, 30).getTime());
     expect(schedule[2].pickupTime.getTime()).toBe(addMinutes(departure, 75).getTime());
   });
+
+  /*
+    The buffer is a promise to the passenger, not slack in the route. If it
+    ever leaked into the bus's own times the whole schedule would drift later
+    by ten minutes per rebuild, so both halves are pinned here.
+  */
+  it('asks passengers to arrive before the bus, without moving the bus', () => {
+    const departure = istDate(2026, 0, 24, 4, 0);
+    const stops = [
+      { name: 'A', coordinates: [75, 26] },
+      { name: 'B', coordinates: [75.5, 26.5] },
+    ];
+    const schedule = buildSchedule(stops, [30, 20], departure, 10);
+
+    expect(schedule[0].pickupTime.getTime()).toBe(departure.getTime());
+    expect(schedule[1].pickupTime.getTime()).toBe(addMinutes(departure, 30).getTime());
+
+    for (const stop of schedule) {
+      expect(stop.pickupTime.getTime() - stop.boardBy.getTime()).toBe(10 * 60_000);
+    }
+  });
+
+  it('defaults to no buffer when none is asked for', () => {
+    const departure = istDate(2026, 0, 24, 4, 0);
+    const [stop] = buildSchedule([{ name: 'A', coordinates: [75, 26] }], [0], departure);
+    expect(stop.boardBy.getTime()).toBe(stop.pickupTime.getTime());
+  });
 });
 
 describe.skipIf(!dbReady)('runRoutingForSession', () => {
@@ -101,6 +128,10 @@ describe.skipIf(!dbReady)('runRoutingForSession', () => {
     expect(bookings.every((b) => b.status === 'assigned')).toBe(true);
     expect(bookings.every((b) => b.pickupTime)).toBe(true);
     expect(bookings.every((b) => b.assignedStop?.name)).toBe(true);
+    // Every passenger is told to be there before their bus is.
+    expect(
+      bookings.every((b) => b.boardBy && b.boardBy.getTime() < b.pickupTime.getTime())
+    ).toBe(true);
   });
 
   it('arrives by the planned target and departs early enough to make it', async () => {

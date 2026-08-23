@@ -16,7 +16,14 @@ const busSchema = new mongoose.Schema(
       {
         name: String,
         coordinates: [Number], // [lng, lat]
+        // When the bus is at this stop. This is the operational truth the
+        // driver and the boarding list work from.
         pickupTime: Date,
+        // When passengers are told to be there — a few minutes earlier.
+        // Telling a student to arrive at the exact minute the bus rolls is a
+        // schedule that only works if nobody is ever slightly late, and a bus
+        // that waits at six stops arrives late for all forty people on it.
+        boardBy: Date,
       },
     ],
 

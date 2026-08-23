@@ -123,11 +123,30 @@ export async function busManifest(req, res) {
     .map(([name, rows]) => ({
       name,
       pickupTime: bus.route?.find((s) => s.name === name)?.pickupTime || null,
+      // Staff should see the time passengers were given, not just the time the
+      // bus is due — otherwise "he's late" and "she's early" are judged
+      // against a clock nobody handed the passenger.
+      boardBy: bus.route?.find((s) => s.name === name)?.boardBy || null,
       seats: rows.reduce((n, r) => n + (r.seats || 1), 0),
       boarded: rows.filter((r) => r.boarded).length,
       passengers: rows.sort((a, b) => a.name.localeCompare(b.name)),
     }))
     .sort((a, b) => (order.get(a.name) ?? 999) - (order.get(b.name) ?? 999));
+
+  /*
+    The other buses on the same sitting.
+
+    Boarding is not one page, it is one page per bus — and on a busy morning
+    somebody is walking down a line of five of them. Sending the neighbours
+    back means the boarding list can carry a "next bus" arrow instead of
+    making staff go back to Admin and hunt for the row they were on.
+  */
+  const siblings = await Bus.find({ session: bus.session })
+    .select('label')
+    .sort({ label: 1 })
+    .lean();
+  const at = siblings.findIndex((s) => String(s._id) === String(bus._id));
+  const brief = (s) => (s ? { id: s._id, label: s.label } : null);
 
   res.json({
     bus: {
@@ -139,6 +158,15 @@ export async function busManifest(req, res) {
       arrivalTime: bus.arrivalTime,
       isOvernight: bus.isOvernight,
       center: bus.center ? `${bus.center.name}, ${bus.center.city}` : null,
+      // Lets the boarding list hand off directly to the driver's screen, which
+      // is the literal next step once everyone is aboard.
+      driverToken: bus.driverToken,
+    },
+    position: {
+      index: at + 1,
+      total: siblings.length,
+      previous: brief(siblings[at - 1]),
+      next: brief(siblings[at + 1]),
     },
     totals: {
       passengers: passengers.length,
