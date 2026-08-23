@@ -177,6 +177,109 @@ describe.skipIf(!dbReady)('auth', () => {
     }
   });
 
+  /**
+   * Password reset. An auth system without one is not finished — a forgotten
+   * password otherwise means the account is gone.
+   */
+  it('does not reveal whether an account exists when asked for a reset', async () => {
+    await makeUser({ email: 'has@examroute.test' });
+    const known = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'has@examroute.test' });
+    const unknown = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'hasnot@examroute.test' });
+
+    expect(known.status).toBe(unknown.status);
+    expect(known.body.message).toBe(unknown.body.message);
+  });
+
+  it('sends a code that is stored hashed, never in plaintext', async () => {
+    const user = await makeUser({ email: 'hashed@examroute.test' });
+    await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'hashed@examroute.test' });
+
+    const { default: User } = await import('../src/models/User.js');
+    const fresh = await User.findById(user._id);
+    expect(fresh.otpHash).toMatch(/^\$2[aby]\$/); // bcrypt
+    expect(fresh.otpExpires.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('resets the password with a valid code and signs the user in', async () => {
+    const user = await makeUser({ email: 'reset@examroute.test' });
+
+    /*
+     * The real code is bcrypt-hashed and never recoverable — that is the
+     * point of hashing it, and brute-forcing six digits here would make the
+     * suite unusably slow. So plant a known hash instead: this test is about
+     * what reset-password does with a correct code, not about how the code
+     * travelled.
+     */
+    const { default: User } = await import('../src/models/User.js');
+    const bcrypt = (await import('bcryptjs')).default;
+    const fresh = await User.findById(user._id);
+    fresh.otpHash = await bcrypt.hash('424242', 4);
+    fresh.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    fresh.otpAttempts = 0;
+    await fresh.save();
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ email: 'reset@examroute.test', code: '424242', password: 'brandnewpass1' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeTruthy();
+
+    // The new password works, and the old one does not.
+    const good = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'reset@examroute.test', password: 'brandnewpass1' });
+    expect(good.status).toBe(200);
+
+    const old = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'reset@examroute.test', password: 'password123' });
+    expect(old.status).toBe(401);
+  });
+
+  it('burns the reset code so it cannot be used twice', async () => {
+    const user = await makeUser({ email: 'once@examroute.test' });
+    const bcrypt = (await import('bcryptjs')).default;
+    const { default: User } = await import('../src/models/User.js');
+
+    const fresh = await User.findById(user._id);
+    fresh.otpHash = await bcrypt.hash('111111', 4);
+    fresh.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await fresh.save();
+
+    const first = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ email: 'once@examroute.test', code: '111111', password: 'firstpass123' });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ email: 'once@examroute.test', code: '111111', password: 'secondpass123' });
+    expect(second.status).toBe(400);
+  });
+
+  it('refuses a reset password that is too short', async () => {
+    const user = await makeUser({ email: 'short@examroute.test' });
+    const bcrypt = (await import('bcryptjs')).default;
+    const { default: User } = await import('../src/models/User.js');
+    const fresh = await User.findById(user._id);
+    fresh.otpHash = await bcrypt.hash('222222', 4);
+    fresh.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await fresh.save();
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ email: 'short@examroute.test', code: '222222', password: 'short' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/8 characters/);
+  });
+
   it('rejects requests with no or invalid token', async () => {
     expect((await request(app).get('/api/auth/me')).status).toBe(401);
     expect(

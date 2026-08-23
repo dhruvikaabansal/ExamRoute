@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const { loginWithGoogle, loginWithPassword, register, verifyOtp, resendOtp } = useAuth();
+  const { loginWithGoogle, loginWithPassword, register, verifyOtp, resendOtp,
+    forgotPassword, resetPassword } = useAuth();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'otp'
+  // 'login' | 'register' | 'otp' | 'forgot' | 'reset'
+  const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [otp, setOtp] = useState('');
   const [otpEmail, setOtpEmail] = useState('');
@@ -60,6 +62,127 @@ export default function Login() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Ask for a reset code.
+   *
+   * The server answers identically whether or not the account exists, so this
+   * screen must not imply otherwise — "if an account exists" is the honest
+   * wording, and anything more specific would leak which emails are
+   * registered to anyone who cares to ask.
+   */
+  async function submitForgot(e) {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      const message = await forgotPassword(form.email);
+      setOtpEmail(form.email);
+      setInfo(message);
+      setMode('reset');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not send a reset code');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitReset(e) {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      // Signs them straight in — no reason to make somebody who just proved
+      // control of their mailbox log in again.
+      const u = await resetPassword(otpEmail, otp, form.password);
+      navigate(u?.homeLocation ? '/exams' : '/profile?welcome=1');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not reset your password');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (mode === 'forgot') {
+    return (
+      <div className="max-w-md mx-auto mt-16">
+        <div className="bg-white border rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Reset your password</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Enter your email and we'll send a 6-digit code.
+          </p>
+          <form onSubmit={submitForgot} className="mt-4 space-y-3">
+            <input
+              className="w-full border rounded p-2"
+              type="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              disabled={busy}
+              className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+            >
+              {busy ? 'Sending…' : 'Send reset code'}
+            </button>
+          </form>
+          <button
+            onClick={() => { setMode('login'); setError(''); setInfo(''); }}
+            className="mt-3 text-xs text-slate-400 hover:underline"
+          >
+            Back to log in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'reset') {
+    return (
+      <div className="max-w-md mx-auto mt-16">
+        <div className="bg-white border rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Choose a new password</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Enter the code sent to <b>{otpEmail}</b> and a new password.
+          </p>
+          {info && <p className="text-xs text-blue-600 mt-2">{info}</p>}
+          <form onSubmit={submitReset} className="mt-4 space-y-3">
+            <input
+              className="w-full border rounded p-2 tracking-widest text-center text-lg"
+              placeholder="______"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              required
+            />
+            <input
+              className="w-full border rounded p-2"
+              type="password"
+              placeholder="New password (min 8 characters)"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              disabled={busy}
+              className="w-full bg-brand text-white py-2 rounded hover:bg-brand-dark disabled:opacity-50"
+            >
+              {busy ? 'Saving…' : 'Set new password'}
+            </button>
+          </form>
+          <button
+            onClick={() => { setMode('forgot'); setError(''); setOtp(''); }}
+            className="mt-3 text-xs text-slate-400 hover:underline"
+          >
+            Send another code
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (mode === 'otp') {
@@ -120,13 +243,13 @@ export default function Login() {
       <div className="mt-8 bg-white border rounded-lg p-6 shadow-sm">
         <div className="flex gap-2 mb-4 text-sm">
           <button
-            onClick={() => setMode('login')}
+            onClick={() => { setMode('login'); setError(''); setInfo(''); }}
             className={`flex-1 py-2 rounded ${mode === 'login' ? 'bg-brand text-white' : 'bg-slate-100'}`}
           >
             Log in
           </button>
           <button
-            onClick={() => setMode('register')}
+            onClick={() => { setMode('register'); setError(''); setInfo(''); }}
             className={`flex-1 py-2 rounded ${mode === 'register' ? 'bg-brand text-white' : 'bg-slate-100'}`}
           >
             Sign up
@@ -154,7 +277,7 @@ export default function Login() {
           <input
             className="w-full border rounded p-2"
             type="password"
-            placeholder="Password (min 6 chars)"
+            placeholder="Password (min 8 characters)"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
@@ -167,6 +290,16 @@ export default function Login() {
           >
             {busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in'}
           </button>
+
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => { setMode('forgot'); setError(''); setInfo(''); }}
+              className="w-full text-center text-sm text-brand hover:underline"
+            >
+              Forgot your password?
+            </button>
+          )}
         </form>
 
         {googleId && (

@@ -59,6 +59,27 @@ export function AuthProvider({ children }) {
     await api.post('/auth/resend-otp', { email });
   }
 
+  /**
+   * Password reset, in two steps.
+   *
+   * The request step returns the server's message verbatim, which is
+   * deliberately the same whether or not the account exists — the UI must not
+   * be more specific than the API, or it undoes the enumeration protection.
+   *
+   * The reset step returns a token, so somebody who has just proved control
+   * of their mailbox is signed straight in rather than being sent back to a
+   * login form to type the password they set four seconds ago.
+   */
+  async function forgotPassword(email) {
+    const res = await api.post('/auth/forgot-password', { email });
+    return res.data.message;
+  }
+
+  async function resetPassword(email, code, password) {
+    const res = await api.post('/auth/reset-password', { email, code, password });
+    return saveAuth(res.data);
+  }
+
   function logout() {
     localStorage.removeItem('examroute_token');
     setUser(null);
@@ -74,6 +95,8 @@ export function AuthProvider({ children }) {
         register,
         verifyOtp,
         resendOtp,
+        forgotPassword,
+        resetPassword,
         logout,
         setUser,
       }}

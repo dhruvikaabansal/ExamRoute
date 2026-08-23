@@ -169,6 +169,94 @@ export async function resendOtp(req, res) {
   res.json(generic);
 }
 
+/**
+ * POST /api/auth/forgot-password  { email }
+ *
+ * Sends a reset code, reusing the same OTP machinery as signup verification:
+ * generated with crypto.randomInt, stored as a bcrypt hash, expiring, attempt
+ * capped and rate limited. A second parallel implementation of "email someone
+ * a code" would be a second chance to get any of that wrong.
+ *
+ * The response is identical whether or not the account exists. Otherwise this
+ * endpoint answers "is this person a user?" for anyone who asks, which is the
+ * same leak the resend-code endpoint was built to avoid.
+ */
+export async function forgotPassword(req, res) {
+  const email = assertEmail(req.body.email);
+  const generic = {
+    message: 'If an account exists for that email, a reset code is on its way.',
+  };
+
+  const user = await User.findOne({ email });
+  if (!user) return res.json(generic);
+
+  // A Google account has no password to reset — telling them to check their
+  // email for a code that will never help is worse than saying so.
+  if (user.authProvider === 'google' && !user.passwordHash)
+    throw ApiError.badRequest(
+      'This account signs in with Google — use the "Continue with Google" button instead'
+    );
+
+  // Swallow the cooldown: surfacing "wait 45s" would confirm the address is
+  // registered, which is exactly what the generic response is protecting.
+  await issueOtp(user).catch(() => {});
+  res.json(generic);
+}
+
+/**
+ * POST /api/auth/reset-password  { email, code, password }
+ *
+ * Verifying the code proves control of the mailbox, which is the same thing
+ * signup verification proves — so a successful reset also marks the address
+ * verified. Somebody who can read the inbox has demonstrated it either way.
+ */
+export async function resetPassword(req, res) {
+  const email = assertEmail(req.body.email);
+  const code = String(req.body.code ?? '').trim();
+  const password = String(req.body.password ?? '');
+
+  if (password.length < 8)
+    throw ApiError.badRequest('Password must be at least 8 characters');
+  if (password.length > 200) throw ApiError.badRequest('Password is too long');
+
+  const user = await User.findOne({ email });
+  // Deliberately vague: a precise "no such account" here would undo the
+  // enumeration protection on the endpoint that sent the code.
+  if (!user) throw ApiError.badRequest('That code is not valid');
+
+  if (!user.otpHash || !user.otpExpires || user.otpExpires < new Date())
+    throw ApiError.badRequest('Code expired — request a new one');
+
+  if (user.otpAttempts >= OTP_MAX_ATTEMPTS) {
+    user.otpHash = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+    throw ApiError.tooMany('Too many incorrect attempts — request a new code');
+  }
+
+  const ok = await bcrypt.compare(code, user.otpHash);
+  if (!ok) {
+    user.otpAttempts += 1;
+    await user.save();
+    const left = Math.max(0, OTP_MAX_ATTEMPTS - user.otpAttempts);
+    throw ApiError.badRequest(
+      left > 0 ? `Incorrect code — ${left} attempt(s) left` : 'Incorrect code'
+    );
+  }
+
+  user.passwordHash = await bcrypt.hash(password, 10);
+  user.emailVerified = true;
+  // Burn the code. A reset code that still works after it has been used is a
+  // second key left under the mat.
+  user.otpHash = undefined;
+  user.otpExpires = undefined;
+  user.otpAttempts = 0;
+  await user.save();
+
+  await enforceAdminEmail(user);
+  res.json({ token: signToken(user), user });
+}
+
 // POST /api/auth/login  { email, password }
 export async function login(req, res) {
   const email = assertEmail(req.body.email);

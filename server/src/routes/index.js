@@ -35,6 +35,11 @@ const router = Router();
 router.post('/auth/register', authLimiter, auth.register);
 router.post('/auth/verify-otp', otpVerifyLimiter, auth.verifyOtp);
 router.post('/auth/resend-otp', otpSendLimiter, auth.resendOtp);
+// Password reset reuses the OTP machinery, so it gets the OTP rate limits too:
+// sending is throttled like any other code email, and verifying is throttled
+// like any other code check.
+router.post('/auth/forgot-password', otpSendLimiter, auth.forgotPassword);
+router.post('/auth/reset-password', otpVerifyLimiter, auth.resetPassword);
 router.post('/auth/login', authLimiter, auth.login);
 router.post('/auth/google', authLimiter, auth.googleLogin);
 router.get('/auth/me', protect, auth.getMe);
