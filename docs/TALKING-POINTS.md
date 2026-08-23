@@ -254,7 +254,7 @@ Rehearse this. Run `npm run seed && npm run seed:demo` beforehand so the data is
 
 1. **Sign up** — show the OTP arriving in the server console. *"Real verification, no SMTP needed to demo it."*
 2. **Book a seat** — drop a home pin, add a companion, show the fare breakdown. *"Distance-based, and the subsidy goes up with distance — that's the social point."*
-3. **Admin → Run routing engine** — this is the moment. *"Jaipur has 55 seats against a 40-seat bus, so watch it split into two, each within capacity. This is the bug I described — k-means picks the bus count but doesn't balance the split."* Point at the seat bars.
+3. **Admin → Run routing engine** — this is the moment. *"Jaipur draws about 150 seats against 40-seat buses, so watch it form four — and look at which towns land together. Each bus serves one corridor out of the city, and the fourth is the students who live at the centre."* Point at the seat bars, then at the maps.
 4. **Driver link** — open in a private window to prove there's no login, hit Simulate driving.
 5. **Track bus live** as the student, side by side. Bus moves.
 6. **QR ticket → board the passenger.** *"The app verified the ticket; a person verifies the person."*

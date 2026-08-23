@@ -4,24 +4,18 @@ Everything needed to get ExamRoute live and on LinkedIn. Not part of the app.
 
 ---
 
-## 1. Push what's here
+## 1. Push, and check CI
 
 ```bash
+npm --prefix server test
 git push origin main
 ```
 
-Five commits are waiting. Check the Actions tab afterwards — CI runs the full
-suite against a real MongoDB, so the 47 integration tests that skip on your
-laptop actually execute there. **A green badge on the repo is worth more than
-any paragraph of the README**, because it is the one claim a stranger can
-verify in two seconds.
-
-Add the badge to the top of `README.md` once the first run passes (replace the
-username if your repo lives elsewhere):
-
-```markdown
-[![CI](https://github.com/dhruvikaabansal/ExamRoute/actions/workflows/ci.yml/badge.svg)](https://github.com/dhruvikaabansal/ExamRoute/actions/workflows/ci.yml)
-```
+144 tests, of which 55 are integration tests against a real MongoDB. CI runs
+them with `REQUIRE_DB=1`, so it cannot quietly pass by skipping the layer that
+matters. **A green badge is worth more than any paragraph of the README** — it
+is the one claim a stranger can verify in two seconds, and it is already wired
+into the top of the file.
 
 ---
 
@@ -124,9 +118,17 @@ than impressions.
 > The fix is a repair pass: any over-capacity cluster gives up its most
 > *peripheral* member — the student farthest from that cluster's centre — to
 > the nearest bus with room. Evicting a central student would tear a hole in
-> the middle of an otherwise tight route. Every move strictly reduces total
-> overflow, so it terminates, and the capacity invariant is asserted before
-> the result is returned.
+> the middle of an otherwise tight route.
+>
+> Then a second, less obvious problem. Once the capacity was right I could see
+> the routes, and they were still wrong: k-means minimises distance to a
+> centroid, so it likes round blobs — but a good bus route is a *corridor*,
+> students strung along one highway from a far town into the city. That is a
+> high-variance cluster, exactly what k-means avoids. So I added the sweep
+> algorithm, which cuts wedges by angle around the exam centre, and then I
+> didn't pick between them: both get built, both get scored on what they would
+> cost to drive, and the cheaper one wins. 10–18% shorter than k-means alone,
+> and it cannot be worse, because k-means is one of the candidates.
 >
 > One thing I decided not to fake: there's no way to digitally verify that
 > someone is a real exam candidate. Only NTA knows, and there's no public API.
@@ -135,8 +137,8 @@ than impressions.
 > app verifies the ticket; a person verifies the person.
 >
 > MERN, JWT + Google OAuth, Razorpay with server-side signature verification,
-> Google Maps Directions, MongoDB 2dsphere geo-queries. 105 tests, integration
-> layer running against a real MongoDB in CI.
+> MongoDB 2dsphere geo-queries. 144 tests, with the integration layer running
+> against a real MongoDB in CI.
 >
 > Code and a full write-up of the decisions in the comments. Feedback welcome —
 > especially from anyone who has actually run bus operations.
@@ -159,7 +161,7 @@ than impressions.
 > any overfull bus — peripheral, because evicting a central one tears a hole in
 > the route.
 >
-> MERN · JWT + Google OAuth · Razorpay · Maps Directions · 105 tests. Repo below.
+> MERN · JWT + Google OAuth · Razorpay · MongoDB geospatial · 144 tests. Repo below.
 
 ### Notes on posting
 

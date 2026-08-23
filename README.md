@@ -122,17 +122,21 @@ ExamRoute/
 │       ├── routes/index.js
 │       ├── services/
 │       │   ├── routingEngine.js  # cluster → snap → order → time
-│       │   ├── clustering.js     # capacity-aware k-means
+│       │   ├── clustering.js     # k-means + sweep, chosen by measured cost
 │       │   ├── stopService.js    # geofenced $near stop assignment
-│       │   ├── mapsService.js    # Directions, with an offline fallback
+│       │   ├── mapsService.js    # Directions, with a 2-opt/Or-opt offline router
+│       │   ├── paymentGateway.js # one place that decides if payments are real
 │       │   └── mailer.js
-│       ├── utils/                # time (IST), validate, fare, apiError, asyncHandler
+│       ├── utils/                # time (IST), validate, fare, refundPolicy,
+│       │                         # apiError, asyncHandler
 │       └── seed/
 └── client/
     └── src/
         ├── pages/                # Login, Exams, BookExam, Confirmation, MyBookings,
-        │                         # Profile, Admin, VerifyTicket, DriverPage, TrackBus
-        ├── components/           # MapView, LocationPicker, Navbar
+        │                         # Profile, Admin, Manifest, VerifyTicket,
+        │                         # DriverPage, TrackBus, NotFound
+        ├── components/           # MapView, LocationPicker, AddressSearch, Navbar,
+        │                         # DemoBanner, ErrorBoundary
         ├── context/AuthContext.jsx
         ├── lib/                  # payments, IST formatting
         └── api/client.js
@@ -169,7 +173,7 @@ Scoring uses a cheaper local search than the final routes do. Choosing between c
 
 ### Capacity-aware clustering
 
-Plain k-means groups students by where they live, which is what makes a sensible route — but it says nothing about how many people land in each group. Choosing `k = ceil(totalSeats / capacity)` only fixes the bus *count*: the split can still be 55 seats on one bus and 5 on another.
+Plain k-means groups students by where they live, which is what makes a sensible route — but it says nothing about how many people land in each group. Choosing `k = ceil(totalSeats / capacity)` only fixes the bus *count*: the split can still land 55 seats on one bus and 5 on another.
 
 So clustering runs in two phases:
 
