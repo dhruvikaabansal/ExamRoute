@@ -30,12 +30,42 @@ export default function Login() {
    * plainly instead of letting them discover it by waiting.
    */
   const [emailWorks, setEmailWorks] = useState(true);
+  const [apiAwake, setApiAwake] = useState(false);
   useEffect(() => {
+    /*
+     * This also wakes the server.
+     *
+     * The API is on a free tier that sleeps after fifteen minutes idle and
+     * takes the better part of a minute to come back. Firing a request the
+     * moment the page loads means the wake-up overlaps with the time somebody
+     * spends typing, instead of starting when they press the button.
+     */
     api
       .get('/health')
-      .then((r) => setEmailWorks(r.data?.emailConfigured !== false))
+      .then((r) => {
+        setEmailWorks(r.data?.emailConfigured !== false);
+        setApiAwake(true);
+      })
       .catch(() => {});
   }, []);
+
+  /*
+   * A spinner that sits for fifty seconds is indistinguishable from a hang.
+   * If a request is still running after four, say what is happening.
+   */
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!busy) return setSlow(false);
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, [busy]);
+
+  const wakingNotice = slow && !apiAwake && (
+    <p className="notice bg-amber-50 border-amber-200 text-amber-800 text-xs mt-3">
+      Waking the server — this demo runs on a free tier that sleeps when idle, so the
+      first request can take up to a minute. It is quick after that.
+    </p>
+  );
 
   const noEmailNotice = !emailWorks && (
     <p className="notice bg-amber-50 border-amber-200 text-amber-800 text-xs mt-2">
@@ -157,6 +187,7 @@ export default function Login() {
             >
               {busy ? 'Sending…' : 'Send reset code'}
             </button>
+            {wakingNotice}
           </form>
           <button
             onClick={() => { setMode('login'); setError(''); setInfo(''); }}
@@ -212,6 +243,7 @@ export default function Login() {
             >
               {busy ? 'Saving…' : 'Set new password'}
             </button>
+            {wakingNotice}
           </form>
           <button
             onClick={() => { setMode('forgot'); setError(''); setOtp(''); }}
@@ -255,6 +287,7 @@ export default function Login() {
             >
               {busy ? 'Verifying…' : 'Verify & continue'}
             </button>
+            {wakingNotice}
           </form>
           <div className="flex justify-between mt-3 text-xs">
             <button
@@ -381,6 +414,7 @@ export default function Login() {
           >
             {busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in'}
           </button>
+            {wakingNotice}
 
           {mode === 'login' && (
             <button
