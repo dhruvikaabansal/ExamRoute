@@ -5,6 +5,7 @@ import routes from './routes/index.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { demoMode } from './services/paymentGateway.js';
+import { mailerDevMode } from './services/mailer.js';
 
 /**
  * The Express app, built separately from the server that listens on a port.
@@ -45,6 +46,11 @@ export function createApp() {
       // Advertised so the frontend can tell visitors that payments are
       // simulated, rather than letting them assume they were charged.
       demoMode: demoMode(),
+      // And whether email actually leaves the building. Without SMTP the code
+      // is only written to the server log, which a visitor cannot read — so
+      // the sign-up screen has to say so rather than let them sit waiting for
+      // a message that is never coming.
+      emailConfigured: !mailerDevMode,
     })
   );
 

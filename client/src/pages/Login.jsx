@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
 
 export default function Login() {
   const { loginWithGoogle, loginWithPassword, register, verifyOtp, resendOtp,
@@ -19,6 +20,29 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   const googleId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  /**
+   * Whether codes actually reach an inbox.
+   *
+   * Without SMTP the server only writes the code to its own log, which a
+   * visitor obviously cannot read — so they sit on the verify screen waiting
+   * for a message that is never coming. If that is the situation, say it
+   * plainly instead of letting them discover it by waiting.
+   */
+  const [emailWorks, setEmailWorks] = useState(true);
+  useEffect(() => {
+    api
+      .get('/health')
+      .then((r) => setEmailWorks(r.data?.emailConfigured !== false))
+      .catch(() => {});
+  }, []);
+
+  const noEmailNotice = !emailWorks && (
+    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-2">
+      Email delivery isn't configured on this deployment, so the code won't reach your
+      inbox. {googleId ? 'Use “Continue with Google” instead.' : 'Ask the operator for the code.'}
+    </p>
+  );
 
   async function submit(e) {
     e.preventDefault();
@@ -112,15 +136,20 @@ export default function Login() {
           <p className="text-sm text-slate-500 mt-1">
             Enter your email and we'll send a 6-digit code.
           </p>
+          {noEmailNotice}
           <form onSubmit={submitForgot} className="mt-4 space-y-3">
-            <input
-              className="w-full border rounded p-2"
-              type="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input
+                className="w-full border rounded p-2"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+              />
+            </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               disabled={busy}
@@ -149,23 +178,33 @@ export default function Login() {
             Enter the code sent to <b>{otpEmail}</b> and a new password.
           </p>
           {info && <p className="text-xs text-blue-600 mt-2">{info}</p>}
+          {noEmailNotice}
           <form onSubmit={submitReset} className="mt-4 space-y-3">
-            <input
-              className="w-full border rounded p-2 tracking-widest text-center text-lg"
-              placeholder="______"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              required
-            />
-            <input
-              className="w-full border rounded p-2"
-              type="password"
-              placeholder="New password (min 8 characters)"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
+            <div>
+              <label className="block text-sm font-medium mb-1">6-digit code</label>
+              <input
+                className="w-full border rounded p-2 tracking-[0.5em] text-center text-lg"
+                placeholder="000000"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">New password</label>
+              <input
+                className="w-full border rounded p-2"
+                type="password"
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+              />
+            </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               disabled={busy}
@@ -194,15 +233,21 @@ export default function Login() {
             Enter the 6-digit code sent to <b>{otpEmail}</b>.
           </p>
           {info && <p className="text-xs text-blue-600 mt-2">{info}</p>}
+          {noEmailNotice}
           <form onSubmit={submitOtp} className="mt-4 space-y-3">
-            <input
-              className="w-full border rounded p-2 tracking-widest text-center text-lg"
-              placeholder="______"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              required
-            />
+            <div>
+              <label className="block text-sm font-medium mb-1">6-digit code</label>
+              <input
+                className="w-full border rounded p-2 tracking-[0.5em] text-center text-lg"
+                placeholder="000000"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                required
+              />
+            </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               disabled={busy}
@@ -258,30 +303,41 @@ export default function Login() {
 
         <form onSubmit={submit} className="space-y-3">
           {mode === 'register' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Full name</label>
+              <input
+                className="w-full border rounded p-2"
+                placeholder="Your name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium mb-1">Email</label>
             <input
               className="w-full border rounded p-2"
-              placeholder="Full name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
             />
-          )}
-          <input
-            className="w-full border rounded p-2"
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-          />
-          <input
-            className="w-full border rounded p-2"
-            type="password"
-            placeholder="Password (min 8 characters)"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-          />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Password</label>
+            <input
+              className="w-full border rounded p-2"
+              type="password"
+              placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+          </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
