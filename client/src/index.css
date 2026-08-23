@@ -3,7 +3,16 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-50 text-slate-800;
+  @apply bg-white text-slate-800;
+}
+
+/*
+ * Default border colour. Tailwind's default is slate-200 already, but the
+ * app used bare `border` everywhere and a hairline reads calmer than the
+ * browser default grey.
+ */
+* {
+  border-color: theme('colors.slate.200');
 }
 
 /*

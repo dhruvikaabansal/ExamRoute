@@ -41,13 +41,15 @@ export default function Exams() {
 
   return (
     <div>
-      <div className="bg-gradient-to-r from-brand to-brand-light rounded-xl px-5 py-6 text-white mb-6">
-        <h2 className="text-2xl font-bold">Upcoming exams in Rajasthan</h2>
-        <p className="text-white/90 text-sm mt-1">
-          {exams.length} exams open for pooling. Pick one, drop your home pin, and we
-          work out the rest.
-        </p>
-      </div>
+      {/*
+        Plain type on white. A saturated banner reads as decoration and pushes
+        the actual content down; the colour is worth more when it is reserved
+        for the thing you want pressed.
+      */}
+      <h2 className="text-2xl font-semibold tracking-tight">Upcoming exams</h2>
+      <p className="text-sm text-slate-500 mt-1 mb-6">
+        {exams.length} exams open for pooling across Rajasthan.
+      </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {exams.map((e) => {
@@ -63,12 +65,12 @@ export default function Exams() {
           return (
             <div
               key={e._id}
-              className={`bg-white rounded-xl border p-5 transition hover:shadow-card hover:-translate-y-0.5 ${
+              className={`bg-white rounded-xl border border-slate-200 p-5 transition hover:border-brand/40 hover:shadow-sm ${
                 closed ? 'opacity-60' : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold bg-brand-soft text-brand-dark px-2.5 py-1 rounded-full">
+                <span className="text-[11px] font-semibold tracking-wide bg-brand-soft text-brand-dark px-2 py-0.5 rounded">
                   {e.code}
                 </span>
                 {e.multiShift ? (
@@ -78,8 +80,8 @@ export default function Exams() {
                 )}
               </div>
 
-              <h3 className="mt-2 font-medium">{e.name}</h3>
-              <p className="text-sm text-slate-500">{e.description}</p>
+              <h3 className="mt-3 font-semibold text-slate-900">{e.name}</h3>
+              <p className="text-sm text-slate-500 mt-1 leading-relaxed">{e.description}</p>
 
               {e.bookingDeadline && (
                 <p className={`text-xs mt-2 ${closed ? 'text-red-600' : 'text-slate-500'}`}>
@@ -90,15 +92,15 @@ export default function Exams() {
               )}
 
               {closed ? (
-                <span className="mt-4 inline-block bg-slate-100 text-slate-400 text-sm px-5 py-2.5 rounded-full cursor-not-allowed">
+                <span className="mt-4 inline-block bg-slate-100 text-slate-400 text-sm px-4 py-2 rounded-lg cursor-not-allowed">
                   Booking closed
                 </span>
               ) : (
                 <Link
                   to={`/book/${e._id}`}
-                  className="mt-4 inline-block bg-brand text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-brand-dark transition"
+                  className="mt-4 inline-block bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-dark transition"
                 >
-                  Book a seat →
+                  Book a seat
                 </Link>
               )}
             </div>

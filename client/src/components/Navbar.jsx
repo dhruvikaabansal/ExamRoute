@@ -13,22 +13,26 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Underline the current section rather than filling a pill. Quieter, and it
+  // does not compete with the one pink button on the page.
   const link = ({ isActive }) =>
-    `px-3 py-1.5 rounded-full text-sm transition ${
-      isActive ? 'bg-brand-soft text-brand-dark font-medium' : 'text-slate-600 hover:text-brand'
+    `px-1 py-1 text-sm border-b-2 transition ${
+      isActive
+        ? 'border-brand text-slate-900 font-medium'
+        : 'border-transparent text-slate-500 hover:text-slate-900'
     }`;
 
   return (
     <nav className="bg-white border-b sticky top-0 z-[900]">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-2xl">🚌</span>
-          <span className="font-extrabold text-xl tracking-tight text-brand">ExamRoute</span>
+          <span className="text-xl">🚌</span>
+          <span className="font-bold text-lg tracking-tight text-brand">ExamRoute</span>
         </Link>
 
         {user && (
           <>
-            <div className="hidden sm:flex items-center gap-1">
+            <div className="hidden sm:flex items-center gap-6">
               <NavLink to="/exams" className={link}>Exams</NavLink>
               <NavLink to="/my-bookings" className={link}>My Bookings</NavLink>
               <NavLink to="/profile" className={link}>Profile</NavLink>
@@ -42,7 +46,7 @@ export default function Navbar() {
                   logout();
                   navigate('/');
                 }}
-                className="border border-slate-200 text-slate-600 px-3 py-1.5 rounded-full hover:border-brand hover:text-brand transition"
+                className="text-slate-500 hover:text-brand transition"
               >
                 Log out
               </button>
@@ -54,7 +58,7 @@ export default function Navbar() {
       {/* The same links, wrapped, on a narrow screen — a student booking a bus
           is far more likely to be on a phone than a laptop. */}
       {user && (
-        <div className="sm:hidden flex items-center gap-1 overflow-x-auto px-3 pb-2">
+        <div className="sm:hidden flex items-center gap-5 overflow-x-auto px-4 pb-2">
           <NavLink to="/exams" className={link}>Exams</NavLink>
           <NavLink to="/my-bookings" className={link}>My Bookings</NavLink>
           <NavLink to="/profile" className={link}>Profile</NavLink>

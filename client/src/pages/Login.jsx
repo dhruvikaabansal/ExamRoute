@@ -282,42 +282,42 @@ export default function Login() {
         booking site uses, and for a reason: it puts the promise and the action
         in one glance instead of making you scroll to find the form.
       */}
-      <div className="relative bg-gradient-to-br from-brand-dark via-brand to-brand-light px-4 pt-14 pb-28 text-white overflow-hidden">
-        {/* Suggestion of a horizon, so the panel is not a flat rectangle. */}
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-24 bg-white/10"
-          style={{ clipPath: 'ellipse(75% 100% at 50% 100%)' }}
-        />
-        <div className="relative max-w-5xl mx-auto">
-          <h1 className="text-3xl sm:text-5xl font-extrabold leading-tight max-w-2xl">
+      {/*
+        A pale tint rather than a saturated slab. The brand colour is worth
+        more when it is spent on the one thing you want pressed — everything
+        here is dark text on near-white, which is how the booking sites this
+        borrows from actually look.
+      */}
+      <div className="bg-brand-soft/50 border-b border-brand-soft px-4 pt-12 pb-10">
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900 max-w-2xl">
             Share a bus to your exam centre
           </h1>
-          <p className="mt-4 text-white/90 max-w-xl">
-            We pool you with students near you heading to the same centre, work out
-            your nearest pickup stop, and time the departure backwards from when the
-            gate closes — so nobody misses their exam.
+          <p className="mt-3 text-slate-600 max-w-xl leading-relaxed">
+            We pool you with students near you heading to the same centre, find your
+            nearest pickup stop, and time the departure backwards from when the gate
+            closes.
           </p>
-          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/80">
-            <span>🚏 Pickup near home</span>
-            <span>💸 Fares subsidised by distance</span>
-            <span>📍 Live bus tracking</span>
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
+            <span>Pickup near home</span>
+            <span>Fares subsidised by distance</span>
+            <span>Live bus tracking</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 -mt-20 relative pb-12">
-      <div className="bg-white border rounded-xl p-6 shadow-card">
+      <div className="max-w-md mx-auto px-4 -mt-8 relative pb-12">
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
         <div className="flex gap-2 mb-4 text-sm">
           <button
             onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-            className={`flex-1 py-2 rounded-full transition ${mode === 'login' ? 'bg-brand text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`flex-1 py-2 rounded-lg text-sm transition ${mode === 'login' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             Log in
           </button>
           <button
             onClick={() => { setMode('register'); setError(''); setInfo(''); }}
-            className={`flex-1 py-2 rounded-full transition ${mode === 'register' ? 'bg-brand text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`flex-1 py-2 rounded-lg text-sm transition ${mode === 'register' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             Sign up
           </button>
