@@ -31,49 +31,51 @@
  * than by remembering.
  */
 @layer components {
+  /* Softer corners, a hairline border and the faintest lift. Cards should
+     look like paper resting on the page, not boxes drawn on it. */
   .card {
-    @apply bg-white rounded-xl border border-slate-200;
+    @apply bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_2px_rgb(0_0_0/0.04)];
   }
 
   .card-pad {
-    @apply card p-5;
+    @apply card p-6;
   }
 
   .card-link {
-    @apply transition hover:border-brand/40 hover:shadow-sm;
+    @apply transition duration-200 hover:border-brand/30 hover:shadow-[0_6px_20px_-8px_rgb(219_39_119/0.25)];
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
-           text-sm font-medium transition
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5
+           text-sm font-semibold transition duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   /**
-   * Primary actions are near-black, not brand-coloured.
+   * Tinted rather than filled.
    *
-   * A saturated fill on every call to action turns the brand colour into
-   * wallpaper — it stops signalling anything because it is everywhere. Dark
-   * buttons read as deliberate at any size, sit calmly on white, and leave
-   * the pink to do a smaller job: the wordmark, a badge, the underline on the
-   * page you are currently looking at.
+   * A pale wash with deep-pink text carries the brand without shouting it: at
+   * a glance it still reads unmistakably as the thing to press, but a page of
+   * them is calm where a page of saturated fills is loud. Hover deepens the
+   * tint slightly, so the affordance is felt rather than announced.
    */
   .btn-primary {
-    @apply btn bg-slate-900 text-white shadow-sm hover:bg-slate-800 active:bg-slate-900;
+    @apply btn bg-brand-soft text-brand-dark border border-brand/15
+           hover:bg-pink-200/70 hover:border-brand/25 active:bg-pink-200;
   }
 
   .btn-dark {
     @apply btn-primary;
   }
 
-  /* For the rare second action that still needs to read as branded. */
+  /* Full-strength, for the single most important action on a screen. */
   .btn-brand {
     @apply btn bg-brand text-white hover:bg-brand-dark;
   }
 
   .btn-outline {
-    @apply btn bg-white border border-slate-200 text-slate-700
-           hover:border-slate-300 hover:bg-slate-50;
+    @apply btn bg-white border border-slate-200 text-slate-600
+           hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900;
   }
 
   .btn-ghost {
@@ -85,10 +87,11 @@
   }
 
   .input {
-    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm
-           outline-none transition
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm
+           outline-none transition duration-200
            placeholder:text-slate-400
-           focus:border-brand focus:ring-2 focus:ring-brand-soft;
+           hover:border-slate-300
+           focus:border-brand focus:ring-4 focus:ring-brand-soft/70;
   }
 
   .label {
@@ -96,7 +99,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold;
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide;
   }
 
   .badge-brand {
@@ -104,7 +107,7 @@
   }
 
   .stat {
-    @apply card px-4 py-3;
+    @apply card px-4 py-3.5;
   }
 
   .stat-value {
@@ -116,7 +119,7 @@
   }
 
   .page-title {
-    @apply text-2xl font-semibold;
+    @apply text-2xl font-bold;
   }
 
   .muted {
@@ -124,7 +127,7 @@
   }
 
   .notice {
-    @apply rounded-lg border px-3 py-2 text-sm;
+    @apply rounded-xl border px-4 py-3 text-sm;
   }
 }
 

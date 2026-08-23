@@ -307,17 +307,17 @@ export default function Login() {
       </div>
 
       <div className="max-w-md mx-auto px-4 -mt-8 relative pb-12">
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-        <div className="flex gap-2 mb-4 text-sm">
+      <div className="card p-6">
+        <div className="flex gap-1 mb-5 text-sm bg-slate-100 rounded-xl p-1">
           <button
             onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-            className={`flex-1 py-2 rounded-lg text-sm transition ${mode === 'login' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${mode === 'login' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
           >
             Log in
           </button>
           <button
             onClick={() => { setMode('register'); setError(''); setInfo(''); }}
-            className={`flex-1 py-2 rounded-lg text-sm transition ${mode === 'register' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${mode === 'register' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
           >
             Sign up
           </button>

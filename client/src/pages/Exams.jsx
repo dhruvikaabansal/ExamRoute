@@ -47,11 +47,11 @@ export default function Exams() {
         for the thing you want pressed.
       */}
       <h2 className="page-title">Upcoming exams</h2>
-      <p className="text-sm text-slate-500 mt-1 mb-6">
+      <p className="muted mt-1.5 mb-7">
         {exams.length} exams open for pooling across Rajasthan.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         {exams.map((e) => {
           /*
             Booking windows close before the exam. Letting someone pick a
@@ -65,9 +65,7 @@ export default function Exams() {
           return (
             <div
               key={e._id}
-              className={`bg-white rounded-xl border border-slate-200 p-5 transition hover:border-brand/40 hover:shadow-sm ${
-                closed ? 'opacity-60' : ''
-              }`}
+              className={`card-pad card-link ${closed ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center justify-between">
                 <span className="badge-brand">
