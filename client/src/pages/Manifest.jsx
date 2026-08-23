@@ -101,11 +101,18 @@ export default function Manifest() {
         <b>{fmtDateTime(bus.arrivalTime)}</b>
       </p>
 
+      {/*
+        Passengers and seats are different numbers and used to sit side by side
+        with no hint of that — "still to board 25" next to "39/40 seats" reads
+        like an error until you realise companions are the difference. The
+        units are now on the tiles, and the arithmetic is spelled out below
+        them rather than left to be inferred.
+      */}
       <div className="grid grid-cols-3 gap-3 my-4">
         {[
-          ['Boarded', totals.boarded],
-          ['Still to board', totals.remaining],
-          ['Seats', `${totals.seats}/${bus.capacity}`],
+          ['passengers boarded', `${totals.boarded}/${totals.passengers}`],
+          ['passengers still to board', totals.remaining],
+          ['seats filled', `${totals.seats}/${bus.capacity}`],
         ].map(([label, value]) => (
           <div key={label} className="bg-white border rounded-lg px-3 py-2">
             <div className="text-lg font-semibold">{value}</div>
@@ -113,6 +120,14 @@ export default function Manifest() {
           </div>
         ))}
       </div>
+
+      {totals.seats > totals.passengers && (
+        <p className="text-xs text-slate-500 -mt-2 mb-4">
+          {totals.passengers} passengers occupy {totals.seats} seats —{' '}
+          {totals.seats - totals.passengers} of them are booked for parents or guardians
+          travelling with a student.
+        </p>
+      )}
 
       {allBoarded && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 mb-4">
@@ -146,7 +161,7 @@ export default function Manifest() {
                 )}
               </div>
               <span className="text-xs text-slate-500">
-                {stop.boarded}/{stop.passengers.length} boarded
+                {stop.boarded}/{stop.passengers.length} boarded · {stop.seats} seats
               </span>
             </div>
 
