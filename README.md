@@ -32,7 +32,9 @@ Two companion documents: [`docs/TALKING-POINTS.md`](docs/TALKING-POINTS.md) for 
 
 ## What it does
 
-**Sign in with Google, and nothing else.** The ID token Google returns is verified server-side against our client id and exchanged for our own JWT, so every downstream route checks one kind of token and a Google outage cannot invalidate a session already in progress. New to JWT? See [`docs/JWT.md`](docs/JWT.md).
+**Sign in with Google, or look around as a guest.** The ID token Google returns is verified server-side against our client id and exchanged for our own JWT, so every downstream route checks one kind of token and a Google outage cannot invalidate a session already in progress. New to JWT? See [`docs/JWT.md`](docs/JWT.md).
+
+Alongside it, one button mints a throwaway student account with no sign-up at all — because most people opening a link like this are evaluating it, and asking a stranger for their Google account before showing them anything is a real cost. Each visitor gets their own fresh identity rather than a shared login, so nobody sees anyone else's bookings or cancels a seat someone was mid-way through paying for. The role is hard-coded to `student`, so nothing about `ADMIN_EMAIL` can promote one by accident, and the whole endpoint is off with `ENABLE_DEMO_LOGIN=false`.
 
 **Real exam data.** Eight exams and 25 sittings seeded with their actual patterns — both JEE Main sessions, JEE Advanced with its two compulsory papers, NEET as a single afternoon shift, CUET subject-wise across three days, plus REET, RPSC RAS and CLAT — across 22 real Rajasthan exam cities. An `Exam` is the umbrella; each individual sitting is an `ExamSession` (one date + one shift), because that is the unit a student actually travels to.
 

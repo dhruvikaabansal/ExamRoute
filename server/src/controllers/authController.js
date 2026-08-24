@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
@@ -100,6 +101,47 @@ export async function googleLogin(req, res) {
   }
 
   res.json({ token: signToken(user), user });
+}
+
+/**
+ * POST /api/auth/demo — a throwaway identity, no sign-in required.
+ *
+ * The reason is the audience. Most people who open this are evaluating it,
+ * and asking a stranger to hand their Google account to a student project
+ * before they can see anything is a real cost — some will decline, and the
+ * ones who do never see the routing engine, which is the part worth showing.
+ *
+ * Three deliberate constraints:
+ *
+ *   - **A fresh account every time.** One shared demo login would mean
+ *     visitors seeing each other's bookings, and one person cancelling a seat
+ *     another was mid-way through paying for. A unique throwaway costs a row
+ *     and removes the whole class of problem.
+ *   - **Never admin.** The role is hard-coded, not derived from an email, so
+ *     nothing about ADMIN_EMAIL can promote one of these by accident.
+ *   - **Switchable off.** A public endpoint that mints sessions is a thing you
+ *     want a lever on. It stays available by default because this deployment
+ *     exists to be tried, and off is one variable away.
+ *
+ * This is not a security hole so much as a deliberately low-value account: it
+ * can do exactly what any student can do, to data it created itself.
+ */
+export async function demoLogin(req, res) {
+  if (process.env.ENABLE_DEMO_LOGIN === 'false')
+    throw ApiError.forbidden('Demo accounts are disabled on this deployment');
+
+  const suffix = crypto.randomBytes(4).toString('hex');
+  const user = await User.create({
+    name: `Guest ${suffix.slice(0, 4).toUpperCase()}`,
+    // .invalid is reserved by RFC 2606 precisely so it can never be a real
+    // address — these accounts are unreachable by email by construction, not
+    // by convention.
+    email: `demo-${suffix}@examroute.invalid`,
+    role: 'student',
+    isDemo: true,
+  });
+
+  res.status(201).json({ token: signToken(user), user });
 }
 
 // GET /api/auth/me

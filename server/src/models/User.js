@@ -47,6 +47,17 @@ const userSchema = new mongoose.Schema(
     */
     googleId: { type: String, index: true, sparse: true },
 
+    /*
+      A throwaway account minted by the demo endpoint.
+
+      Flagged rather than inferred from the email domain, because the UI needs
+      to say so — someone exploring on a guest account should be told that is
+      what they are on, not left to wonder why their bookings vanished when
+      they came back on a different browser. It also makes them one query to
+      clean up.
+    */
+    isDemo: { type: Boolean, default: false },
+
     picture: { type: String },
     phone: { type: String }, // reusable across exams
     role: { type: String, enum: ROLES, default: 'student' },

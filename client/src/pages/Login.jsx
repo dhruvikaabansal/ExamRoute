@@ -24,7 +24,7 @@ import api from '../api/client';
  * screen rather than a reduced version of it.
  */
 export default function Login() {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, loginAsDemo } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -58,19 +58,17 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [busy]);
 
-  async function onGoogle(credential) {
+  /** Both sign-in paths land in the same place, so they share the ending. */
+  async function enter(getUser, failureMessage) {
     setError('');
     setBusy(true);
     try {
-      const user = await loginWithGoogle(credential);
+      const user = await getUser();
       // Straight to booking if we already know where they live; otherwise
       // collect that first, since every fare and pickup depends on it.
       navigate(user?.homeLocation ? '/exams' : '/profile?welcome=1');
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          'Could not sign you in with Google. Please try again.'
-      );
+      setError(err.response?.data?.message || failureMessage);
     } finally {
       setBusy(false);
     }
@@ -130,7 +128,12 @@ export default function Login() {
             {googleId ? (
               <div className="flex justify-center mt-7">
                 <GoogleLogin
-                  onSuccess={(cred) => onGoogle(cred.credential)}
+                  onSuccess={(cred) =>
+                    enter(
+                      () => loginWithGoogle(cred.credential),
+                      'Could not sign you in with Google. Please try again.'
+                    )
+                  }
                   onError={() => setError('Google sign-in failed. Please try again.')}
                   useOneTap={false}
                 />
@@ -148,6 +151,35 @@ export default function Login() {
                 the frontend environment and redeploy.
               </p>
             )}
+
+            {/*
+              The second way in, and for most people who land here the better
+              one. Anyone opening this is probably evaluating it, and asking a
+              stranger for their Google account before showing them anything
+              is a real cost — the ones who decline never reach the routing
+              engine, which is the part worth seeing.
+
+              Quieter than the Google button on purpose: it is the shortcut,
+              not the way an actual student would sign in.
+            */}
+            <div className="flex items-center gap-3 my-6 text-xs text-slate-400">
+              <div className="h-px bg-slate-200 flex-1" />
+              or
+              <div className="h-px bg-slate-200 flex-1" />
+            </div>
+
+            <button
+              onClick={() =>
+                enter(loginAsDemo, 'Could not start a demo session. Please try again.')
+              }
+              disabled={busy}
+              className="btn-outline w-full"
+            >
+              Explore with a guest account
+            </button>
+            <p className="text-xs text-slate-400 mt-2">
+              No sign-up. You get a fresh empty account to book a seat and look around.
+            </p>
 
             {busy && <p className="muted mt-5">Signing you in…</p>}
 

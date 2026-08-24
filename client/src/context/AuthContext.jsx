@@ -41,11 +41,27 @@ export function AuthProvider({ children }) {
    * own JWT — so every route downstream checks one kind of token, and a
    * Google outage cannot invalidate a session already in progress.
    */
+  function saveAuth(data) {
+    localStorage.setItem('examroute_token', data.token);
+    setUser(data.user);
+    return data.user;
+  }
+
   async function loginWithGoogle(credential) {
     const res = await api.post('/auth/google', { credential });
-    localStorage.setItem('examroute_token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
+    return saveAuth(res.data);
+  }
+
+  /**
+   * A throwaway student account, for looking around without signing in.
+   *
+   * Deliberately a separate call rather than a flag on the one above: the two
+   * produce very different sessions, and collapsing them would make it easy
+   * to end up unsure which kind you are holding.
+   */
+  async function loginAsDemo() {
+    const res = await api.post('/auth/demo');
+    return saveAuth(res.data);
   }
 
   function logout() {
@@ -54,7 +70,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, setUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, loginWithGoogle, loginAsDemo, logout, setUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

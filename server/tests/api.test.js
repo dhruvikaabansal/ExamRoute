@@ -92,6 +92,64 @@ describe.skipIf(!dbReady)('auth', () => {
     expect([400, 401]).toContain(res.status);
   });
 
+  /*
+    The guest account exists so the app can be evaluated without handing a
+    Google account to a stranger's project. It is deliberately low-value —
+    these assertions are what keeps it that way.
+  */
+  it('issues a usable session with no credential at all', async () => {
+    const res = await request(app).post('/api/auth/demo');
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBeTruthy();
+    expect(res.body.user.isDemo).toBe(true);
+
+    const me = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${res.body.token}`);
+    expect(me.status).toBe(200);
+  });
+
+  it('gives every visitor their own account, not a shared one', async () => {
+    const a = await request(app).post('/api/auth/demo');
+    const b = await request(app).post('/api/auth/demo');
+    expect(a.body.user._id).not.toBe(b.body.user._id);
+  });
+
+  /*
+    The one that matters. ADMIN_EMAIL promotes an account on sign-in, and a
+    public endpoint that could ever mint an admin would hand the routing
+    engine and every student's address to anyone who found the URL.
+  */
+  it('never mints an admin, whatever ADMIN_EMAIL is set to', async () => {
+    const saved = process.env.ADMIN_EMAIL;
+    try {
+      // Deliberately hostile: match the pattern demo emails are built from.
+      process.env.ADMIN_EMAIL = 'demo-00000000@examroute.invalid';
+      const res = await request(app).post('/api/auth/demo');
+      expect(res.body.user.role).toBe('student');
+
+      const blocked = await request(app)
+        .get('/api/admin/buses/000000000000000000000000')
+        .set('Authorization', `Bearer ${res.body.token}`);
+      expect(blocked.status).toBe(403);
+    } finally {
+      if (saved === undefined) delete process.env.ADMIN_EMAIL;
+      else process.env.ADMIN_EMAIL = saved;
+    }
+  });
+
+  it('can be switched off on a deployment that does not want it', async () => {
+    const saved = process.env.ENABLE_DEMO_LOGIN;
+    try {
+      process.env.ENABLE_DEMO_LOGIN = 'false';
+      const res = await request(app).post('/api/auth/demo');
+      expect(res.status).toBe(403);
+    } finally {
+      if (saved === undefined) delete process.env.ENABLE_DEMO_LOGIN;
+      else process.env.ENABLE_DEMO_LOGIN = saved;
+    }
+  });
+
   it('rejects requests with no or invalid token', async () => {
     expect((await request(app).get('/api/auth/me')).status).toBe(401);
     expect(

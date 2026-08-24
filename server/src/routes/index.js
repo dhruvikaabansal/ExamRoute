@@ -33,6 +33,10 @@ const router = Router();
 // the endpoint verifies a token against Google on every call, so it is worth
 // a cap even though guessing a signed token is not the threat.
 router.post('/auth/google', authLimiter, auth.googleLogin);
+// A throwaway student account, so the app can be evaluated without handing a
+// Google account to a stranger's project. Rate limited because it is public
+// and it writes.
+router.post('/auth/demo', authLimiter, auth.demoLogin);
 router.get('/auth/me', protect, auth.getMe);
 router.patch('/auth/profile', protect, auth.updateProfile);
 
