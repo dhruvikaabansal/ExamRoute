@@ -5,7 +5,7 @@ import routes from './routes/index.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { demoMode } from './services/paymentGateway.js';
-import { mailerDevMode } from './services/mailer.js';
+import { mailerDevMode, mailerStatus } from './services/mailer.js';
 
 /**
  * The Express app, built separately from the server that listens on a port.
@@ -46,11 +46,21 @@ export function createApp() {
       // Advertised so the frontend can tell visitors that payments are
       // simulated, rather than letting them assume they were charged.
       demoMode: demoMode(),
-      // And whether email actually leaves the building. Without SMTP the code
-      // is only written to the server log, which a visitor cannot read — so
-      // the sign-up screen has to say so rather than let them sit waiting for
-      // a message that is never coming.
+      /*
+        And whether email actually leaves the building.
+
+        "Configured" was the wrong question. SMTP credentials were present and
+        correct on the deployed API, so this reported healthy — while every
+        single send timed out, because the host blocks outbound SMTP ports. The
+        sign-up screen believed it and told people to check an inbox nothing
+        was ever sent to.
+
+        So this now reports the last observed *outcome*, not the presence of
+        settings. Configured but failing is a different state from configured
+        and working, and only one of them should let the UI promise an email.
+      */
       emailConfigured: !mailerDevMode,
+      email: mailerStatus(),
     })
   );
 

@@ -298,7 +298,7 @@ Only `MONGO_URI` and `JWT_SECRET` are required — the server refuses to start w
 |---|---|
 | `GOOGLE_MAPS_API_KEY` | Straight-line distance estimates and nearest-neighbour stop ordering |
 | `RAZORPAY_KEY_ID/SECRET` | Mock payment flow (blocked in production) |
-| `SMTP_*` | OTPs and confirmations printed to the server console |
+| `RESEND_API_KEY` / `SMTP_*` | OTPs and confirmations printed to the server console |
 | `GOOGLE_CLIENT_ID` | Google sign-in hidden; email + password still works |
 
 The policy numbers all live in the environment, because they are business decisions rather than constants:
@@ -327,6 +327,8 @@ Two things to get right, both of which fail quietly if you don't:
 
 - `NODE_ENV=production` — blocks mock payments, enforces a 32-character minimum on `JWT_SECRET`, and stops index reconciliation on every boot.
 - `CLIENT_URL` — the exact origin of the deployed frontend. There is no wildcard CORS fallback, so a wrong value fails visibly in the browser instead of silently opening the API to everyone.
+
+**Email will not work over SMTP on a free tier.** Render, Fly and Railway all block outbound ports 25, 465 and 587 as an anti-spam measure, so correct Gmail credentials still produce `Connection timeout` on every send — the port is shut, not the password wrong. This is worth knowing because it fails in the most misleading way possible: the credentials check out, the config looks right, and the only symptom is silence. Set `RESEND_API_KEY` instead and mail goes over HTTPS like any other request. `GET /api/health` reports which transport is in use and the last delivery error, so the answer to "did that email actually send?" is one request away rather than a guess.
 
 ---
 

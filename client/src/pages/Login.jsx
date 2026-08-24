@@ -43,7 +43,15 @@ export default function Login() {
     api
       .get('/health')
       .then((r) => {
-        setEmailWorks(r.data?.emailConfigured !== false);
+        /*
+          Configured is not the same as working. The deployed API had valid
+          SMTP credentials and every send still timed out, because the host
+          blocks the ports — so this checks the last observed outcome too.
+        */
+        const mail = r.data?.email;
+        setEmailWorks(
+          r.data?.emailConfigured !== false && !(mail?.configured && mail?.lastError)
+        );
         setApiAwake(true);
       })
       .catch(() => {});
@@ -69,8 +77,11 @@ export default function Login() {
 
   const noEmailNotice = !emailWorks && (
     <p className="notice bg-amber-50 border-amber-200 text-amber-800 text-xs mt-2">
-      Email delivery isn't configured on this deployment, so the code won't reach your
-      inbox. {googleId ? 'Use “Continue with Google” instead.' : 'Ask the operator for the code.'}
+      Email isn&apos;t getting out from this deployment, so the code won&apos;t reach
+      your inbox.{' '}
+      {googleId
+        ? 'Use “Continue with Google” instead — it needs no code.'
+        : 'Ask the operator for the code.'}
     </p>
   );
 
@@ -83,7 +94,17 @@ export default function Login() {
         const r = await register(form.name, form.email, form.password);
         setOtpEmail(r.email);
         setWasRegister(true);
-        setInfo('We emailed you a 6-digit code. (In dev, check the server console.)');
+        /*
+          Only promise an inbox when the server actually managed to send.
+          It reports the outcome of this specific send, so a delivery failure
+          is admitted immediately rather than discovered by waiting.
+        */
+        if (r.emailSent === false) setEmailWorks(false);
+        setInfo(
+          r.emailSent === false
+            ? 'Your account is created, but the code could not be emailed.'
+            : 'We emailed you a 6-digit code. It expires in 10 minutes.'
+        );
         setMode('otp');
       } else {
         const r = await loginWithPassword(form.email, form.password);

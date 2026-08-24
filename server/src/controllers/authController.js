@@ -78,24 +78,32 @@ async function issueOtp(user) {
   await user.save();
 
   /*
-   * Dispatched, not awaited.
+   * Awaited, but only because sendMail can no longer hang.
    *
    * Storing the code is the part that must succeed before we answer — once it
-   * is saved, the code is valid whether or not the email got out. Delivery is
-   * a third party we do not control, and awaiting it means an SMTP server
-   * that is slow, blocked or simply unreachable holds the whole request open.
-   * That turned a sign-in on the deployed site into an endless spinner: the
-   * login path sends a fresh code for unverified accounts, so a hung mail
-   * connection hung the login.
+   * is saved, the code is valid whether or not the email got out. That is why
+   * this was originally dispatched and not awaited: an unreachable mail server
+   * held the whole request open, and since login re-sends a code for
+   * unverified accounts, a hung SMTP connection hung the login.
    *
-   * Failures are logged rather than surfaced. A student who does not receive
-   * the code can ask for another; one who cannot sign in at all has no options.
+   * Firing and forgetting fixed the hang and introduced a worse problem. When
+   * delivery was broken — as it was on Render, which blocks outbound SMTP
+   * entirely — the API cheerfully answered "we have sent you a code" and no
+   * code ever arrived. The user waits, refreshes, checks spam, requests
+   * another, and concludes the site is broken without ever being told what is
+   * actually wrong.
+   *
+   * Every transport now has a hard timeout and sendMail never throws, so
+   * awaiting is bounded and safe. The outcome is returned so the caller can
+   * say something true.
    */
-  sendMail({
+  const delivery = await sendMail({
     to: user.email,
     subject: 'Your ExamRoute verification code',
     text: `Hi ${user.name}, your ExamRoute verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
-  }).catch((err) => console.warn('OTP email failed to send:', err.message));
+  });
+
+  return { emailSent: delivery.ok === true && !delivery.devMode, devMode: !!delivery.devMode };
 }
 
 // POST /api/auth/register  { name, email, password }
@@ -121,9 +129,15 @@ export async function register(req, res) {
     role: isAdminEmail(email) ? 'admin' : 'student',
   });
 
-  await issueOtp(user);
-  // No token yet — the emailed code must be verified first.
-  res.status(201).json({ needsVerification: true, email: user.email });
+  const delivery = await issueOtp(user);
+  // No token yet — the emailed code must be verified first. `emailSent` lets
+  // the sign-up screen say "check your inbox" only when that is actually true.
+  res.status(201).json({
+    needsVerification: true,
+    email: user.email,
+    emailSent: delivery.emailSent,
+    devMode: delivery.devMode,
+  });
 }
 
 // POST /api/auth/verify-otp  { email, code }
@@ -179,8 +193,13 @@ export async function resendOtp(req, res) {
   };
   if (!user || user.emailVerified) return res.json(generic);
 
-  await issueOtp(user);
-  res.json(generic);
+  const delivery = await issueOtp(user);
+  /*
+    Whether delivery worked is not an account fact, so reporting it leaks
+    nothing about who is registered — the generic message is unchanged, and
+    this flag would read the same for any address.
+  */
+  res.json({ ...generic, emailSent: delivery.emailSent, devMode: delivery.devMode });
 }
 
 /**
