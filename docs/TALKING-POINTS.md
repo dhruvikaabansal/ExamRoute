@@ -20,7 +20,7 @@ Then stop. Let them ask.
 
 This is the question that sinks the project if it catches you off guard, and wins it if you raise it yourself.
 
-> You can't, digitally. Only NTA knows who is registered, and there's no public API. The one legitimate route is DigiLocker, which requires partner-organisation onboarding I can't get as a student project. So rather than fake a "verified ✓" badge, I layered the deterrents I *can* honestly build: email OTP so it isn't a throwaway signup, a real payment so there's skin in the game, and a QR ticket that is scanned at boarding, where a person checks the physical admit card against the name and roll number on screen. The app verifies the ticket; a human verifies the person. I'd rather ship an honest boundary than a security theatre.
+> You can't, digitally. Only NTA knows who is registered, and there's no public API. The one legitimate route is DigiLocker, which requires partner-organisation onboarding I can't get as a student project. So rather than fake a "verified ✓" badge, I layered the deterrents I *can* honestly build: sign-in through Google so it isn't a throwaway account, a real payment so there's skin in the game, and a QR ticket that is scanned at boarding, where a person checks the physical admit card against the name and roll number on screen. The app verifies the ticket; a human verifies the person. I'd rather ship an honest boundary than a security theatre.
 
 That answer demonstrates threat modelling, knowing the limits of your own system, and a willingness to say "I can't."
 
@@ -164,7 +164,7 @@ Only surfaced when the app was first put on a real host — which is the point.
 > off three protections to solve one problem. The real issue was that I'd
 > conflated two questions into one flag: *is this production?* and *is this
 > deployment allowed to fake payments?* Those deserve separate answers. So
-> production now blocks mock payments unless `ALLOW_MOCK_PAYMENTS=true` is
+> production now refuses simulated payments outright, with no override — it is
 > explicitly set — an omission can't enable it, only a decision can.
 
 Two details worth adding:
@@ -240,10 +240,9 @@ operational decision, not a code one.
 
 Have one sentence ready for each:
 
-- **OTP** — 6 digits is a million possibilities. With no attempt cap, that's minutes of scripted guessing, so it isn't a control at all. I hash the code with bcrypt (a database dump shouldn't hand over live codes), cap it at 5 attempts per account, rate-limit per IP, and generate it with `crypto.randomInt` rather than `Math.random`, which is predictable and shouldn't generate anything credential-shaped.
-- **Payments** — the Razorpay signature is recomputed server-side with an HMAC and compared in constant time, and I check the order id belongs to *that* booking. Trusting the browser's "payment succeeded" callback would make the payment step decorative.
+- **Credentials** — there aren't any. Sign-in is Google only, so the app stores no password and no code. The ID token is verified against my own client id before it's exchanged for my JWT, and that audience check is the part that matters: without it, a token minted for any other application would be accepted, and users hand those out to every site they sign into.
+- **Payments** — the Razorpay signature is recomputed server-side with an HMAC and compared in constant time, and I check the order id belongs to *that* booking. A signature Razorpay genuinely produced for a different order must not settle this one, or one real payment could be replayed across every seat an attacker owns. Trusting the browser's "payment succeeded" callback would make the payment step decorative.
 - **Fare tampering** — fare is derived from distance, so an unvalidated coordinate pair is really an unvalidated price. Coordinates are checked for shape and plausibility server-side, and the client never sends an amount.
-- **Enumeration** — the resend-OTP endpoint returns the same response whether or not the account exists, so it can't be used to discover which emails are registered.
 - **The honest weakness** — the JWT lives in `localStorage`, which is exposed to XSS. An httpOnly cookie with CSRF protection is stronger. I chose `localStorage` for a simpler SPA flow and I'd change it if this handled real money.
 
 Volunteering that last one is a strength, not a weakness. Candidates who claim their project is fully secure are the ones who get picked apart.
@@ -281,9 +280,9 @@ Don't say "nothing". Have three:
 
 Rehearse this. Run `npm run seed && npm run seed:demo` beforehand so the data is fresh.
 
-1. **Sign up** — show the OTP arriving in the server console. *"Real verification, no SMTP needed to demo it."*
-2. **Book a seat** — drop a home pin, add a companion, show the fare breakdown. *"Distance-based, and the subsidy goes up with distance — that's the social point."*
-3. **Admin → Run routing engine** — this is the moment. *"Jaipur draws about 150 seats against 40-seat buses, so watch it form four — and look at which towns land together. Each bus serves one corridor out of the city, and the fourth is the students who live at the centre."* Point at the seat bars, then at the maps.
+1. **Sign in with Google.** One button. *"There's no password in this system to leak — Google verifies the address and handles recovery."*
+2. **Book a seat** — drop a home pin, add a companion, show the fare breakdown, pay through the real Razorpay checkout with a test card. *"Distance-based, and the subsidy goes up with distance — that's the social point. The gateway is real; only the money is test-mode."*
+3. **Admin → Run routing engine** — this is the moment. *"Jaipur draws about 190 seats against 40-seat buses, so watch it form five — and look at which towns land together. Each bus serves one corridor out of the city, and one is the students who live at the centre."* Point at the seat bars, then at the maps.
 4. **Driver link** — open in a private window to prove there's no login, hit Simulate driving.
 5. **Track bus live** as the student, side by side. Bus moves.
 6. **QR ticket → board the passenger.** *"The app verified the ticket; a person verifies the person."*

@@ -62,222 +62,34 @@ describe.skipIf(!dbReady)('error handling', () => {
 });
 
 describe.skipIf(!dbReady)('auth', () => {
-  it('rejects a weak password', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({ name: 'A', email: 'weak@examroute.test', password: 'short' });
+  /*
+    Google is the only way in.
+
+    Email and password with an OTP used to live here, and so did about a
+    dozen tests covering code hashing, attempt caps and password reset. They
+    went with the feature: the code could not be delivered from a free
+    hosting tier, so the flow they protected was one nobody could complete.
+
+    What is left tests the boundary that is genuinely ours. Verifying an ID
+    token against Google is not something this suite can do offline — that
+    needs Google's signing keys — so these cover the parts around it: the
+    endpoint refuses what it should, the JWT it issues is what protects every
+    other route, and nothing sensitive comes back on a user.
+  */
+  it('refuses a sign-in with no credential', async () => {
+    const res = await request(app).post('/api/auth/google').send({});
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/8 characters/);
+    expect(res.body.message).toMatch(/credential/i);
   });
 
-  it('rejects a malformed email', async () => {
+  it('refuses a credential that is not a valid Google token', async () => {
     const res = await request(app)
-      .post('/api/auth/register')
-      .send({ name: 'A', email: 'not-an-email', password: 'password123' });
-    expect(res.status).toBe(400);
-  });
-
-  it('registers without issuing a token until the code is verified', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({ name: 'Asha', email: 'asha@examroute.test', password: 'password123' });
-
-    expect(res.status).toBe(201);
-    expect(res.body.needsVerification).toBe(true);
-    expect(res.body.token).toBeUndefined();
-  });
-
-  it('never stores the OTP in plaintext', async () => {
-    await request(app)
-      .post('/api/auth/register')
-      .send({ name: 'Bh', email: 'bh@examroute.test', password: 'password123' });
-
-    const { default: User } = await import('../src/models/User.js');
-    const user = await User.findOne({ email: 'bh@examroute.test' });
-    expect(user.otpHash).toBeTruthy();
-    expect(user.otpHash).toMatch(/^\$2[aby]\$/); // bcrypt
-    expect(user.otpCode).toBeUndefined();
-  });
-
-  it('locks the account after repeated wrong codes', async () => {
-    await request(app)
-      .post('/api/auth/register')
-      .send({ name: 'Ck', email: 'ck@examroute.test', password: 'password123' });
-
-    // Five wrong guesses, then the sixth is refused outright rather than
-    // simply being wrong — a 6-digit code is otherwise brute-forceable.
-    for (let i = 0; i < 5; i++) {
-      const res = await request(app)
-        .post('/api/auth/verify-otp')
-        .send({ email: 'ck@examroute.test', code: '000000' });
-      expect(res.status).toBe(400);
-    }
-
-    const locked = await request(app)
-      .post('/api/auth/verify-otp')
-      .send({ email: 'ck@examroute.test', code: '000000' });
-    expect(locked.status).toBe(429);
-  });
-
-  it('does not reveal whether an email is registered', async () => {
-    await makeUser({ email: 'known@examroute.test' });
-    const known = await request(app)
-      .post('/api/auth/resend-otp')
-      .send({ email: 'known@examroute.test' });
-    const unknown = await request(app)
-      .post('/api/auth/resend-otp')
-      .send({ email: 'nobody@examroute.test' });
-
-    expect(known.status).toBe(unknown.status);
-    expect(known.body.message).toBe(unknown.body.message);
-  });
-
-  /**
-   * ADMIN_EMAIL is an invariant, not a one-time assignment.
-   *
-   * It was applied at signup and never checked again, so anything that later
-   * changed that account's role locked the system out permanently — no
-   * remaining account could reach the admin page to undo it, including the one
-   * named in the configuration. Signing in must restore it.
-   */
-  it('restores admin to the configured ADMIN_EMAIL on sign-in', async () => {
-    const previous = process.env.ADMIN_EMAIL;
-    process.env.ADMIN_EMAIL = 'boss@examroute.test';
-    try {
-      // An account that used to be admin and has since been demoted.
-      const user = await makeUser({ email: 'boss@examroute.test', role: 'student' });
-
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: 'boss@examroute.test', password: 'password123' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.user.role).toBe('admin');
-
-      const { default: User } = await import('../src/models/User.js');
-      expect((await User.findById(user._id)).role).toBe('admin');
-    } finally {
-      process.env.ADMIN_EMAIL = previous;
-    }
-  });
-
-  it('does not promote anyone else', async () => {
-    const previous = process.env.ADMIN_EMAIL;
-    process.env.ADMIN_EMAIL = 'boss@examroute.test';
-    try {
-      await makeUser({ email: 'someone@examroute.test' });
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: 'someone@examroute.test', password: 'password123' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.user.role).toBe('student');
-    } finally {
-      process.env.ADMIN_EMAIL = previous;
-    }
-  });
-
-  /**
-   * Password reset. An auth system without one is not finished — a forgotten
-   * password otherwise means the account is gone.
-   */
-  it('does not reveal whether an account exists when asked for a reset', async () => {
-    await makeUser({ email: 'has@examroute.test' });
-    const known = await request(app)
-      .post('/api/auth/forgot-password')
-      .send({ email: 'has@examroute.test' });
-    const unknown = await request(app)
-      .post('/api/auth/forgot-password')
-      .send({ email: 'hasnot@examroute.test' });
-
-    expect(known.status).toBe(unknown.status);
-    expect(known.body.message).toBe(unknown.body.message);
-  });
-
-  it('sends a code that is stored hashed, never in plaintext', async () => {
-    const user = await makeUser({ email: 'hashed@examroute.test' });
-    await request(app)
-      .post('/api/auth/forgot-password')
-      .send({ email: 'hashed@examroute.test' });
-
-    const { default: User } = await import('../src/models/User.js');
-    const fresh = await User.findById(user._id);
-    expect(fresh.otpHash).toMatch(/^\$2[aby]\$/); // bcrypt
-    expect(fresh.otpExpires.getTime()).toBeGreaterThan(Date.now());
-  });
-
-  it('resets the password with a valid code and signs the user in', async () => {
-    const user = await makeUser({ email: 'reset@examroute.test' });
-
-    /*
-     * The real code is bcrypt-hashed and never recoverable — that is the
-     * point of hashing it, and brute-forcing six digits here would make the
-     * suite unusably slow. So plant a known hash instead: this test is about
-     * what reset-password does with a correct code, not about how the code
-     * travelled.
-     */
-    const { default: User } = await import('../src/models/User.js');
-    const bcrypt = (await import('bcryptjs')).default;
-    const fresh = await User.findById(user._id);
-    fresh.otpHash = await bcrypt.hash('424242', 4);
-    fresh.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    fresh.otpAttempts = 0;
-    await fresh.save();
-
-    const res = await request(app)
-      .post('/api/auth/reset-password')
-      .send({ email: 'reset@examroute.test', code: '424242', password: 'brandnewpass1' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.token).toBeTruthy();
-
-    // The new password works, and the old one does not.
-    const good = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'reset@examroute.test', password: 'brandnewpass1' });
-    expect(good.status).toBe(200);
-
-    const old = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'reset@examroute.test', password: 'password123' });
-    expect(old.status).toBe(401);
-  });
-
-  it('burns the reset code so it cannot be used twice', async () => {
-    const user = await makeUser({ email: 'once@examroute.test' });
-    const bcrypt = (await import('bcryptjs')).default;
-    const { default: User } = await import('../src/models/User.js');
-
-    const fresh = await User.findById(user._id);
-    fresh.otpHash = await bcrypt.hash('111111', 4);
-    fresh.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await fresh.save();
-
-    const first = await request(app)
-      .post('/api/auth/reset-password')
-      .send({ email: 'once@examroute.test', code: '111111', password: 'firstpass123' });
-    expect(first.status).toBe(200);
-
-    const second = await request(app)
-      .post('/api/auth/reset-password')
-      .send({ email: 'once@examroute.test', code: '111111', password: 'secondpass123' });
-    expect(second.status).toBe(400);
-  });
-
-  it('refuses a reset password that is too short', async () => {
-    const user = await makeUser({ email: 'short@examroute.test' });
-    const bcrypt = (await import('bcryptjs')).default;
-    const { default: User } = await import('../src/models/User.js');
-    const fresh = await User.findById(user._id);
-    fresh.otpHash = await bcrypt.hash('222222', 4);
-    fresh.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await fresh.save();
-
-    const res = await request(app)
-      .post('/api/auth/reset-password')
-      .send({ email: 'short@examroute.test', code: '222222', password: 'short' });
-    expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/8 characters/);
+      .post('/api/auth/google')
+      .send({ credential: 'not.a.real.token' });
+    // 401 when a client id is configured and verification fails; 400 when
+    // there is none to verify against. Both are refusals, and which one you
+    // get is a deployment fact rather than a behaviour worth pinning.
+    expect([400, 401]).toContain(res.status);
   });
 
   it('rejects requests with no or invalid token', async () => {
@@ -287,12 +99,46 @@ describe.skipIf(!dbReady)('auth', () => {
     ).toBe(401);
   });
 
-  it('never returns password or OTP fields', async () => {
+  it('accepts our own JWT and returns the signed-in user', async () => {
+    const user = await makeUser({ email: 'me@examroute.test' });
+    const res = await asUser(request(app).get('/api/auth/me'), user);
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe('me@examroute.test');
+  });
+
+  /*
+    Deliberately still checked even though the fields no longer exist. The
+    serialiser is the last line before a response leaves the building, and a
+    test that only asserts what is currently there stops being a guard the
+    moment somebody adds a field.
+  */
+  it('never returns credential fields on a user', async () => {
     const user = await makeUser();
     const res = await asUser(request(app).get('/api/auth/me'), user);
     expect(res.status).toBe(200);
     expect(res.body.user.passwordHash).toBeUndefined();
     expect(res.body.user.otpHash).toBeUndefined();
+    expect(res.body.user.googleId).toBeUndefined();
+  });
+
+  it('lets a signed-in user save their home location and phone', async () => {
+    const user = await makeUser();
+    const res = await asUser(request(app).patch('/api/auth/profile'), user).send({
+      coordinates: [75.7873, 26.9124],
+      address: 'Jaipur',
+      phone: '9876543210',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.user.homeLocation.coordinates).toEqual([75.7873, 26.9124]);
+    expect(res.body.user.phone).toBe('9876543210');
+  });
+
+  it('refuses a phone number that is not a valid Indian mobile', async () => {
+    const user = await makeUser();
+    const res = await asUser(request(app).patch('/api/auth/profile'), user).send({
+      phone: '12345',
+    });
+    expect(res.status).toBe(400);
   });
 });
 

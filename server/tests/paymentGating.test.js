@@ -36,24 +36,39 @@ describe('mock payment gating', () => {
     expect(mockPaymentsAllowed(env)).toBe(false); // ...and still refused
   });
 
-  it('allows them in production only when explicitly opted in', () => {
-    const env = { NODE_ENV: 'production', ALLOW_MOCK_PAYMENTS: 'true' };
-    expect(mockPaymentsAllowed(env)).toBe(true);
-    expect(demoMode(env)).toBe(true);
-  });
+  /*
+    There used to be an opt-out — ALLOW_MOCK_PAYMENTS=true, so a public demo
+    with no gateway could still complete a booking. It is gone, and this is
+    the test that stops it coming back: no value of any environment variable
+    may re-enable simulated payments in production.
 
-  it('requires the exact string "true", not any truthy-looking value', () => {
-    for (const value of ['1', 'yes', 'TRUE', 'on', '', 'false']) {
-      expect(
-        mockPaymentsAllowed({ NODE_ENV: 'production', ALLOW_MOCK_PAYMENTS: value })
-      ).toBe(false);
+    The old flag is included in the sweep deliberately. If someone restores
+    that branch, this fails rather than quietly working again.
+  */
+  it('cannot be re-enabled in production by any environment variable', () => {
+    for (const extra of [
+      { ALLOW_MOCK_PAYMENTS: 'true' },
+      { ALLOW_MOCK_PAYMENTS: '1' },
+      { DEMO: 'true' },
+      {},
+    ]) {
+      expect(mockPaymentsAllowed({ NODE_ENV: 'production', ...extra })).toBe(false);
     }
   });
 
   it('does not claim demo mode when real Razorpay keys are configured', () => {
-    const env = { NODE_ENV: 'production', ALLOW_MOCK_PAYMENTS: 'true', ...REAL_KEYS };
+    const env = { NODE_ENV: 'production', ...REAL_KEYS };
     expect(razorpayConfigured(env)).toBe(true);
     expect(demoMode(env)).toBe(false);
+  });
+
+  /*
+    demoMode is now unreachable: it requires production, and production
+    refuses simulated payments. Pinned so the banner logic and this gate can
+    never drift into disagreeing about whether money is real.
+  */
+  it('is unreachable, because production no longer permits simulation', () => {
+    expect(demoMode({ NODE_ENV: 'production' })).toBe(false);
   });
 
   it('is never demo mode outside production', () => {

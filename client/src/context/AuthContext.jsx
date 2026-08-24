@@ -3,6 +3,19 @@ import api from '../api/client';
 
 const AuthContext = createContext(null);
 
+/**
+ * Session state, and the one way to start one.
+ *
+ * This used to carry six auth calls: Google, password login, register, verify
+ * OTP, resend OTP, and the two halves of a password reset. All of them except
+ * Google are gone, because the code they depended on could not be delivered
+ * from a free hosting tier and a login form that cannot send its own
+ * verification code is a trap rather than a feature.
+ *
+ * The token lives in localStorage. That is XSS-exposed, and an httpOnly cookie
+ * with CSRF protection would be stronger — it is a deliberate trade for a
+ * simpler SPA flow, and the honest answer if asked.
+ */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,64 +33,19 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
-  function saveAuth(data) {
-    localStorage.setItem('examroute_token', data.token);
-    setUser(data.user);
-    return data.user;
-  }
-
+  /**
+   * Exchange Google's ID token for ours.
+   *
+   * The credential from Google is not used as the session token. It goes to
+   * our server, which verifies the signature and the audience and issues its
+   * own JWT — so every route downstream checks one kind of token, and a
+   * Google outage cannot invalidate a session already in progress.
+   */
   async function loginWithGoogle(credential) {
     const res = await api.post('/auth/google', { credential });
-    return saveAuth(res.data);
-  }
-
-  // returns { needsVerification: true } if the account isn't email-verified yet
-  async function loginWithPassword(email, password) {
-    try {
-      const res = await api.post('/auth/login', { email, password });
-      saveAuth(res.data);
-      return { user: res.data.user };
-    } catch (err) {
-      if (err.response?.status === 403 && err.response.data?.needsVerification)
-        return { needsVerification: true, email };
-      throw err;
-    }
-  }
-
-  // register never logs in directly — it triggers an OTP email
-  async function register(name, email, password) {
-    await api.post('/auth/register', { name, email, password });
-    return { needsVerification: true, email };
-  }
-
-  async function verifyOtp(email, code) {
-    const res = await api.post('/auth/verify-otp', { email, code });
-    return saveAuth(res.data);
-  }
-
-  async function resendOtp(email) {
-    await api.post('/auth/resend-otp', { email });
-  }
-
-  /**
-   * Password reset, in two steps.
-   *
-   * The request step returns the server's message verbatim, which is
-   * deliberately the same whether or not the account exists — the UI must not
-   * be more specific than the API, or it undoes the enumeration protection.
-   *
-   * The reset step returns a token, so somebody who has just proved control
-   * of their mailbox is signed straight in rather than being sent back to a
-   * login form to type the password they set four seconds ago.
-   */
-  async function forgotPassword(email) {
-    const res = await api.post('/auth/forgot-password', { email });
-    return res.data.message;
-  }
-
-  async function resetPassword(email, code, password) {
-    const res = await api.post('/auth/reset-password', { email, code, password });
-    return saveAuth(res.data);
+    localStorage.setItem('examroute_token', res.data.token);
+    setUser(res.data.user);
+    return res.data.user;
   }
 
   function logout() {
@@ -86,21 +54,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        loginWithGoogle,
-        loginWithPassword,
-        register,
-        verifyOtp,
-        resendOtp,
-        forgotPassword,
-        resetPassword,
-        logout,
-        setUser,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

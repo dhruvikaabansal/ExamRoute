@@ -1,17 +1,32 @@
-import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { sendMail } from '../services/mailer.js';
 import { ApiError } from '../utils/apiError.js';
-import { assertEmail, assertNonEmptyString, assertCoordinates } from '../utils/validate.js';
+import { assertCoordinates } from '../utils/validate.js';
+
+/**
+ * One way in: Google.
+ *
+ * There used to be a second path — email and password, with a 6-digit OTP to
+ * prove the address was real, and a reset flow built on the same machinery.
+ * It was careful work: codes from `crypto.randomInt`, stored as bcrypt hashes,
+ * capped at five attempts, rate limited per address and per IP.
+ *
+ * It was also undeliverable. Free hosting tiers block outbound SMTP, and the
+ * transactional email services that work over HTTPS will only send to an
+ * unverified sender's own address until you own and verify a domain. So on the
+ * deployed site the code was generated correctly, hashed correctly, stored
+ * correctly, and then went nowhere. An auth path that cannot deliver its
+ * credential is not an auth path; it is a form that traps people.
+ *
+ * Google verifies the address, holds the password, and handles recovery — all
+ * three of the things the removed code was doing, done by someone with an
+ * email infrastructure. What is left here is the part that is genuinely ours:
+ * verifying Google's ID token against our client id, and exchanging it for our
+ * own JWT so that every downstream route has one notion of identity.
+ */
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-const OTP_TTL_MINUTES = 10;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 // A JWT is just a signed statement that "this is user X". We sign it with
 // JWT_SECRET; the client returns it on every request and our middleware
@@ -30,294 +45,15 @@ function isAdminEmail(email) {
 }
 
 /**
- * ADMIN_EMAIL is an invariant, not a one-time assignment.
+ * POST /api/auth/google  { credential }
  *
- * The configured address was promoted to admin at signup and never checked
- * again, so anything that later changed that account's role locked the system
- * out permanently — no remaining account could reach the admin page to undo
- * it, including the account named in the configuration. Re-asserting it on
- * every sign-in makes the situation recoverable by logging out and back in,
- * which is the sort of recovery path a person can find without being told.
+ * `credential` is a Google ID token: a JWT that Google signed. Verifying it
+ * is the entire security of this endpoint, and it checks two things that both
+ * matter — that Google's signature is valid, and that the token was issued for
+ * *our* client id. Without the audience check, a token minted for any other
+ * application would be accepted here, which is a real attack rather than a
+ * theoretical one: those tokens are handed to every site a user signs into.
  */
-async function enforceAdminEmail(user) {
-  if (!isAdminEmail(user.email) || user.role === 'admin') return user;
-  user.role = 'admin';
-  await user.save();
-  return user;
-}
-
-/**
- * `crypto.randomInt` rather than `Math.random`.
- *
- * `Math.random` is a fast PRNG, not a cryptographic one: its output is
- * predictable from prior values. For anything that acts as a credential —
- * and a login code is a credential — the generator has to be unpredictable.
- */
-function makeOtp() {
-  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
-}
-
-/**
- * Issues a fresh code. The code is hashed before storage and held in
- * plaintext only long enough to email it — it is never persisted recoverably.
- */
-async function issueOtp(user) {
-  const cooldownMs = OTP_RESEND_COOLDOWN_SECONDS * 1000;
-  if (user.otpLastSentAt && Date.now() - user.otpLastSentAt.getTime() < cooldownMs) {
-    const wait = Math.ceil(
-      (cooldownMs - (Date.now() - user.otpLastSentAt.getTime())) / 1000
-    );
-    throw ApiError.tooMany(`Please wait ${wait}s before requesting another code`);
-  }
-
-  const code = makeOtp();
-  user.otpHash = await bcrypt.hash(code, 10);
-  user.otpExpires = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-  user.otpAttempts = 0;
-  user.otpLastSentAt = new Date();
-  await user.save();
-
-  /*
-   * Awaited, but only because sendMail can no longer hang.
-   *
-   * Storing the code is the part that must succeed before we answer — once it
-   * is saved, the code is valid whether or not the email got out. That is why
-   * this was originally dispatched and not awaited: an unreachable mail server
-   * held the whole request open, and since login re-sends a code for
-   * unverified accounts, a hung SMTP connection hung the login.
-   *
-   * Firing and forgetting fixed the hang and introduced a worse problem. When
-   * delivery was broken — as it was on Render, which blocks outbound SMTP
-   * entirely — the API cheerfully answered "we have sent you a code" and no
-   * code ever arrived. The user waits, refreshes, checks spam, requests
-   * another, and concludes the site is broken without ever being told what is
-   * actually wrong.
-   *
-   * Every transport now has a hard timeout and sendMail never throws, so
-   * awaiting is bounded and safe. The outcome is returned so the caller can
-   * say something true.
-   */
-  const delivery = await sendMail({
-    to: user.email,
-    subject: 'Your ExamRoute verification code',
-    text: `Hi ${user.name}, your ExamRoute verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
-  });
-
-  return { emailSent: delivery.ok === true && !delivery.devMode, devMode: !!delivery.devMode };
-}
-
-// POST /api/auth/register  { name, email, password }
-export async function register(req, res) {
-  const name = assertNonEmptyString(req.body.name, 'Name');
-  const email = assertEmail(req.body.email);
-  const password = String(req.body.password ?? '');
-
-  if (password.length < 8)
-    throw ApiError.badRequest('Password must be at least 8 characters');
-  if (password.length > 200) throw ApiError.badRequest('Password is too long');
-
-  const existing = await User.findOne({ email });
-  if (existing) throw ApiError.conflict('Email already registered');
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = await User.create({
-    name,
-    email,
-    authProvider: 'local',
-    passwordHash,
-    emailVerified: false,
-    role: isAdminEmail(email) ? 'admin' : 'student',
-  });
-
-  const delivery = await issueOtp(user);
-  // No token yet — the emailed code must be verified first. `emailSent` lets
-  // the sign-up screen say "check your inbox" only when that is actually true.
-  res.status(201).json({
-    needsVerification: true,
-    email: user.email,
-    emailSent: delivery.emailSent,
-    devMode: delivery.devMode,
-  });
-}
-
-// POST /api/auth/verify-otp  { email, code }
-export async function verifyOtp(req, res) {
-  const email = assertEmail(req.body.email);
-  const code = String(req.body.code ?? '').trim();
-
-  const user = await User.findOne({ email });
-  if (!user) throw ApiError.notFound('Account not found');
-  if (user.emailVerified) return res.json({ token: signToken(user), user });
-
-  if (!user.otpHash || !user.otpExpires || user.otpExpires < new Date())
-    throw ApiError.badRequest('Code expired — request a new one');
-
-  // Per-account attempt cap. The IP rate limiter slows an attacker down; this
-  // stops them regardless of how many addresses they attack from.
-  if (user.otpAttempts >= OTP_MAX_ATTEMPTS) {
-    user.otpHash = undefined;
-    user.otpExpires = undefined;
-    await user.save();
-    throw ApiError.tooMany('Too many incorrect attempts — request a new code');
-  }
-
-  const ok = await bcrypt.compare(code, user.otpHash);
-  if (!ok) {
-    user.otpAttempts += 1;
-    await user.save();
-    const left = Math.max(0, OTP_MAX_ATTEMPTS - user.otpAttempts);
-    throw ApiError.badRequest(
-      left > 0 ? `Incorrect code — ${left} attempt(s) left` : 'Incorrect code'
-    );
-  }
-
-  user.emailVerified = true;
-  user.otpHash = undefined;
-  user.otpExpires = undefined;
-  user.otpAttempts = 0;
-  await user.save();
-
-  res.json({ token: signToken(user), user });
-}
-
-// POST /api/auth/resend-otp  { email }
-export async function resendOtp(req, res) {
-  const email = assertEmail(req.body.email);
-  const user = await User.findOne({ email });
-
-  // Deliberately uniform response whether or not the account exists: a
-  // differing reply here turns this endpoint into a way to enumerate which
-  // email addresses are registered.
-  const generic = {
-    message: 'If that account needs verification, a new code has been sent',
-  };
-  if (!user || user.emailVerified) return res.json(generic);
-
-  const delivery = await issueOtp(user);
-  /*
-    Whether delivery worked is not an account fact, so reporting it leaks
-    nothing about who is registered — the generic message is unchanged, and
-    this flag would read the same for any address.
-  */
-  res.json({ ...generic, emailSent: delivery.emailSent, devMode: delivery.devMode });
-}
-
-/**
- * POST /api/auth/forgot-password  { email }
- *
- * Sends a reset code, reusing the same OTP machinery as signup verification:
- * generated with crypto.randomInt, stored as a bcrypt hash, expiring, attempt
- * capped and rate limited. A second parallel implementation of "email someone
- * a code" would be a second chance to get any of that wrong.
- *
- * The response is identical whether or not the account exists. Otherwise this
- * endpoint answers "is this person a user?" for anyone who asks, which is the
- * same leak the resend-code endpoint was built to avoid.
- */
-export async function forgotPassword(req, res) {
-  const email = assertEmail(req.body.email);
-  const generic = {
-    message: 'If an account exists for that email, a reset code is on its way.',
-  };
-
-  const user = await User.findOne({ email });
-  if (!user) return res.json(generic);
-
-  // A Google account has no password to reset — telling them to check their
-  // email for a code that will never help is worse than saying so.
-  if (user.authProvider === 'google' && !user.passwordHash)
-    throw ApiError.badRequest(
-      'This account signs in with Google — use the "Continue with Google" button instead'
-    );
-
-  // Swallow the cooldown: surfacing "wait 45s" would confirm the address is
-  // registered, which is exactly what the generic response is protecting.
-  await issueOtp(user).catch(() => {});
-  res.json(generic);
-}
-
-/**
- * POST /api/auth/reset-password  { email, code, password }
- *
- * Verifying the code proves control of the mailbox, which is the same thing
- * signup verification proves — so a successful reset also marks the address
- * verified. Somebody who can read the inbox has demonstrated it either way.
- */
-export async function resetPassword(req, res) {
-  const email = assertEmail(req.body.email);
-  const code = String(req.body.code ?? '').trim();
-  const password = String(req.body.password ?? '');
-
-  if (password.length < 8)
-    throw ApiError.badRequest('Password must be at least 8 characters');
-  if (password.length > 200) throw ApiError.badRequest('Password is too long');
-
-  const user = await User.findOne({ email });
-  // Deliberately vague: a precise "no such account" here would undo the
-  // enumeration protection on the endpoint that sent the code.
-  if (!user) throw ApiError.badRequest('That code is not valid');
-
-  if (!user.otpHash || !user.otpExpires || user.otpExpires < new Date())
-    throw ApiError.badRequest('Code expired — request a new one');
-
-  if (user.otpAttempts >= OTP_MAX_ATTEMPTS) {
-    user.otpHash = undefined;
-    user.otpExpires = undefined;
-    await user.save();
-    throw ApiError.tooMany('Too many incorrect attempts — request a new code');
-  }
-
-  const ok = await bcrypt.compare(code, user.otpHash);
-  if (!ok) {
-    user.otpAttempts += 1;
-    await user.save();
-    const left = Math.max(0, OTP_MAX_ATTEMPTS - user.otpAttempts);
-    throw ApiError.badRequest(
-      left > 0 ? `Incorrect code — ${left} attempt(s) left` : 'Incorrect code'
-    );
-  }
-
-  user.passwordHash = await bcrypt.hash(password, 10);
-  user.emailVerified = true;
-  // Burn the code. A reset code that still works after it has been used is a
-  // second key left under the mat.
-  user.otpHash = undefined;
-  user.otpExpires = undefined;
-  user.otpAttempts = 0;
-  await user.save();
-
-  await enforceAdminEmail(user);
-  res.json({ token: signToken(user), user });
-}
-
-// POST /api/auth/login  { email, password }
-export async function login(req, res) {
-  const email = assertEmail(req.body.email);
-  const password = String(req.body.password ?? '');
-
-  const user = await User.findOne({ email });
-  if (!user || !user.passwordHash)
-    throw ApiError.unauthorized('Invalid email or password');
-
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) throw ApiError.unauthorized('Invalid email or password');
-
-  if (!user.emailVerified) {
-    // Best effort: inside the resend cooldown we still tell them to verify
-    // rather than failing the login outright.
-    await issueOtp(user).catch(() => {});
-    return res.status(403).json({
-      needsVerification: true,
-      email: user.email,
-      message: 'Please verify your email',
-    });
-  }
-
-  await enforceAdminEmail(user);
-  res.json({ token: signToken(user), user });
-}
-
-// POST /api/auth/google  { credential }  (Google ID token from the frontend)
 export async function googleLogin(req, res) {
   const { credential } = req.body;
   if (!credential) throw ApiError.badRequest('Missing credential');
@@ -345,13 +81,20 @@ export async function googleLogin(req, res) {
       name: payload.name,
       email,
       picture: payload.picture,
-      authProvider: 'google',
-      emailVerified: true, // Google has already verified the address
       role: admin ? 'admin' : 'student',
     });
   } else {
     if (!user.googleId) user.googleId = payload.sub;
-    if (!user.emailVerified) user.emailVerified = true;
+    /*
+      ADMIN_EMAIL is an invariant, not a one-time assignment.
+
+      It used to be applied only at signup, so anything that later changed
+      that account's role locked the system out permanently — no remaining
+      account could reach the admin page to undo it, including the one named
+      in the configuration. Re-asserting it on every sign-in makes the
+      situation recoverable by signing out and back in, which is a recovery
+      path a person can find without being told.
+    */
     if (admin && user.role !== 'admin') user.role = 'admin';
     await user.save();
   }

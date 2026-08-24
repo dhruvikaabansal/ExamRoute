@@ -35,13 +35,17 @@ services:
       - key: ADMIN_EMAIL
         sync: false
 
-      # This is a public demo with no Razorpay account behind it, so payments
-      # are simulated. Mock payments are blocked in production unless this is
-      # explicitly set — forgetting to configure Razorpay must not be enough
-      # to expose "mark my booking paid for free". Remove this the moment any
-      # real money is involved.
-      - key: ALLOW_MOCK_PAYMENTS
-        value: true
+      # Razorpay test-mode keys. Prompted on first deploy rather than stored
+      # here, because a secret in a committed file is a secret already leaked.
+      #
+      # Required: simulated payments are refused outside development and there
+      # is no override, so the deployed API needs a real gateway. Test keys are
+      # free and exercise the genuine checkout, order ids and signatures — only
+      # the money is fake.
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
 
       # Optional integrations. Left unset, the server falls back to
       # straight-line distances and console-logged email — so a missing key

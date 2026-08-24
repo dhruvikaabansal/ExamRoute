@@ -149,8 +149,6 @@ async function demo() {
         const user = await User.create({
           name,
           email,
-          authProvider: 'local',
-          emailVerified: true,
           role: 'student',
           phone: `9${String(800000000 + index * 137)}`.slice(0, 10),
           homeLocation: { type: 'Point', coordinates: coords, address: town },

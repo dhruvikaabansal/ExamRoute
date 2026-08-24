@@ -34,23 +34,18 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
 
-    // auth: a user signs up with Google OR email+password
-    authProvider: { type: String, enum: ['google', 'local'], default: 'local' },
-    googleId: { type: String, index: true, sparse: true },
-    passwordHash: { type: String }, // only for local (email+password) accounts
+    /*
+      Identity is Google's, entirely.
 
-    // Email verification (OTP). Google users are auto-verified by Google.
-    //
-    // The code is stored as a bcrypt hash, never in plaintext: a 6-digit code
-    // is a short-lived password, and a database dump should not hand over live
-    // codes for every pending signup. `otpAttempts` caps guessing — a 6-digit
-    // code has only a million possibilities, which is minutes of scripted
-    // requests without a limit.
-    emailVerified: { type: Boolean, default: false },
-    otpHash: { type: String },
-    otpExpires: { type: Date },
-    otpAttempts: { type: Number, default: 0 },
-    otpLastSentAt: { type: Date },
+      A password hash and an OTP hash used to live here, with an expiry, an
+      attempt counter and a resend timestamp. They are gone along with the
+      email auth path, and the best thing about their absence is that this
+      application now stores no credential of any kind. There is no password
+      to leak, no code to brute force, and no reset flow to abuse — the whole
+      class of problem belongs to Google, who are considerably better placed
+      to handle it.
+    */
+    googleId: { type: String, index: true, sparse: true },
 
     picture: { type: String },
     phone: { type: String }, // reusable across exams
@@ -63,14 +58,16 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ homeLocation: '2dsphere' });
 
-// never leak secrets in API responses
+/*
+  This transform used to strip a password hash and an OTP hash from every
+  response. There is nothing secret left on a user to strip, but it is kept —
+  as a deny-list applied at the serialisation boundary — because the next
+  sensitive field somebody adds will be returned by every endpoint that
+  returns a user unless something is already in the habit of removing it.
+*/
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
-    delete ret.passwordHash;
-    delete ret.otpHash;
-    delete ret.otpExpires;
-    delete ret.otpAttempts;
-    delete ret.otpLastSentAt;
+    delete ret.googleId; // an account identifier, of no use to a client
     return ret;
   },
 });

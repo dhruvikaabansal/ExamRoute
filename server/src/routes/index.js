@@ -1,11 +1,6 @@
 import { Router } from 'express';
 import { protect, adminOnly, driverTokenAuth } from '../middleware/auth.js';
-import {
-  authLimiter,
-  otpVerifyLimiter,
-  otpSendLimiter,
-  driverLimiter,
-} from '../middleware/rateLimit.js';
+import { authLimiter, driverLimiter } from '../middleware/rateLimit.js';
 import { wrapAll } from '../utils/asyncHandler.js';
 
 import * as authController from '../controllers/authController.js';
@@ -32,15 +27,11 @@ const driver = wrapAll(driverController);
 const router = Router();
 
 // ---------------------------------------------------------------- auth
-router.post('/auth/register', authLimiter, auth.register);
-router.post('/auth/verify-otp', otpVerifyLimiter, auth.verifyOtp);
-router.post('/auth/resend-otp', otpSendLimiter, auth.resendOtp);
-// Password reset reuses the OTP machinery, so it gets the OTP rate limits too:
-// sending is throttled like any other code email, and verifying is throttled
-// like any other code check.
-router.post('/auth/forgot-password', otpSendLimiter, auth.forgotPassword);
-router.post('/auth/reset-password', otpVerifyLimiter, auth.resetPassword);
-router.post('/auth/login', authLimiter, auth.login);
+// Google is the only way in. Email + password with an OTP was removed because
+// the code could not be delivered from a free hosting tier, and an auth path
+// that cannot deliver its credential only traps people. Still rate limited:
+// the endpoint verifies a token against Google on every call, so it is worth
+// a cap even though guessing a signed token is not the threat.
 router.post('/auth/google', authLimiter, auth.googleLogin);
 router.get('/auth/me', protect, auth.getMe);
 router.patch('/auth/profile', protect, auth.updateProfile);

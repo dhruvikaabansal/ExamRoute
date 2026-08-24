@@ -28,25 +28,34 @@ export const mockPayments = !razorpayConfigured();
 /**
  * Whether simulated payments may actually be confirmed.
  *
- * Mock payments are blocked in production, because "mark my booking paid for
- * free" is not an endpoint a mis-set environment variable should be able to
- * expose. But a *public demo* is a production deployment by every other
- * measure — real host, real database, NODE_ENV=production — and a demo where
- * nobody can complete a booking demonstrates nothing.
+ * Never in production. There is no opt-out.
  *
- * So the exception is explicit rather than implicit. Weakening the NODE_ENV
- * check would have conflated two different questions: "is this production?"
- * and "is this deployment allowed to fake payments?". They deserve separate
- * answers, and the second one requires somebody to have deliberately typed
- * ALLOW_MOCK_PAYMENTS=true.
+ * There used to be one: `ALLOW_MOCK_PAYMENTS=true` let a public demo confirm
+ * bookings without a gateway, on the reasoning that a demo nobody can complete
+ * a booking on demonstrates nothing. That reasoning was sound and the result
+ * was still wrong — a deployed site that says "payments are simulated" is
+ * asking every visitor to imagine the feature working. Wiring real Razorpay
+ * test keys costs nothing, exercises the genuine checkout, the genuine order
+ * ids and the genuine signature verification, and only the money is fake.
+ *
+ * So the escape hatch is gone rather than merely discouraged. An endpoint that
+ * marks a booking paid for free should not be one environment variable away
+ * from being live, and the flag being *typed deliberately* is not much comfort
+ * when the person typing it is copying a variable list into a dashboard.
+ *
+ * Locally, with no keys, the mock path still runs — that is what keeps the
+ * project cloneable and runnable with nothing but a database URL.
  */
 export function mockPaymentsAllowed(env = process.env) {
-  return env.NODE_ENV !== 'production' || env.ALLOW_MOCK_PAYMENTS === 'true';
+  return env.NODE_ENV !== 'production';
 }
 
 /**
- * True when this deployment is publicly showing simulated payments — i.e. it
- * is production, has no real gateway, and has been told that is acceptable.
+ * True when this deployment is publicly showing simulated payments.
+ *
+ * Now impossible by construction, and kept as a function rather than deleted
+ * because the frontend banner and the tests both ask the question, and the
+ * honest answer needs to stay reachable if the policy ever changes again.
  *
  * Deliberately a function of the environment rather than a constant captured
  * at import: a constant can only be tested by resetting the module registry,
@@ -58,15 +67,20 @@ export function demoMode(env = process.env) {
   return !razorpayConfigured(env) && mockPaymentsAllowed(env) && env.NODE_ENV === 'production';
 }
 
-if (mockPayments) console.log('💳 Payments in DEV MOCK MODE (no real Razorpay keys)');
+if (mockPayments) console.log('Payments in DEV MOCK MODE (no Razorpay keys configured)');
 
-// Loud on purpose. If this ever appears in the logs of something handling real
-// money, it should be impossible to scroll past.
-if (demoMode())
-  console.warn(
-    '\n⚠️  ALLOW_MOCK_PAYMENTS=true in production — payments are SIMULATED.\n' +
-      '   Correct for a public demo, catastrophic for anything taking real money.\n'
+/*
+  A production deployment with no gateway can no longer fake a payment, so it
+  cannot take one either. Failing at boot with an explanation beats failing at
+  checkout in front of whoever you are demonstrating to.
+*/
+if (process.env.NODE_ENV === 'production' && !razorpayConfigured()) {
+  console.error(
+    '\nRAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not set in production.\n' +
+      '   Payments will fail: simulated confirmation is disabled outside development.\n' +
+      '   Test-mode keys from the Razorpay dashboard are free and work end to end.\n'
   );
+}
 
 export function getInstance() {
   return new Razorpay({

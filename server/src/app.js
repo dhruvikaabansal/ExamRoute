@@ -47,17 +47,15 @@ export function createApp() {
       // simulated, rather than letting them assume they were charged.
       demoMode: demoMode(),
       /*
-        And whether email actually leaves the building.
+        Whether email actually leaves the building.
 
-        "Configured" was the wrong question. SMTP credentials were present and
-        correct on the deployed API, so this reported healthy — while every
-        single send timed out, because the host blocks outbound SMTP ports. The
-        sign-up screen believed it and told people to check an inbox nothing
-        was ever sent to.
-
-        So this now reports the last observed *outcome*, not the presence of
-        settings. Configured but failing is a different state from configured
-        and working, and only one of them should let the UI promise an email.
+        Nothing depends on this for sign-in any more — that was the point of
+        moving to Google-only — so a broken mailer no longer locks anyone out.
+        It is still reported because booking confirmations use it, and
+        "configured" turned out to be the wrong question: the deployed API had
+        valid SMTP credentials and every send timed out anyway, because the
+        host blocks the ports. So this reports the last observed outcome, not
+        the presence of settings.
       */
       emailConfigured: !mailerDevMode,
       email: mailerStatus(),

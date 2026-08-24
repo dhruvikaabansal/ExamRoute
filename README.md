@@ -32,7 +32,7 @@ Two companion documents: [`docs/TALKING-POINTS.md`](docs/TALKING-POINTS.md) for 
 
 ## What it does
 
-**Auth, two ways, with email verification.** Email + password (bcrypt) or Google OAuth 2.0. Email signups verify a 6-digit code; Google users are auto-verified because Google already did it. Either path ends with our own JWT. New to JWT? See [`docs/JWT.md`](docs/JWT.md).
+**Sign in with Google, and nothing else.** The ID token Google returns is verified server-side against our client id and exchanged for our own JWT, so every downstream route checks one kind of token and a Google outage cannot invalidate a session already in progress. New to JWT? See [`docs/JWT.md`](docs/JWT.md).
 
 **Real exam data.** Eight exams and 25 sittings seeded with their actual patterns — both JEE Main sessions, JEE Advanced with its two compulsory papers, NEET as a single afternoon shift, CUET subject-wise across three days, plus REET, RPSC RAS and CLAT — across 22 real Rajasthan exam cities. An `Exam` is the umbrella; each individual sitting is an `ExamSession` (one date + one shift), because that is the unit a student actually travels to.
 
@@ -76,7 +76,7 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-Fill in `MONGO_URI` and `JWT_SECRET` in `server/.env`. Set `ADMIN_EMAIL` to the address you will sign in with — that account becomes an admin automatically. Everything else can stay blank.
+Fill in `MONGO_URI` and `JWT_SECRET` in `server/.env`, and `VITE_GOOGLE_CLIENT_ID` in `client/.env` with a matching `GOOGLE_CLIENT_ID` on the server — Google is the only way to sign in, so nothing works without it. Set `ADMIN_EMAIL` to the address you will sign in with and that account becomes an admin automatically. Everything else can stay blank.
 
 ```bash
 # generate a secret
@@ -101,8 +101,8 @@ npm run dev
 
 ### 6. Walk the demo
 
-1. **Sign up** with email + password. The OTP is printed to the server console (no SMTP needed). Use your `ADMIN_EMAIL` so you get admin rights.
-2. **Book a seat** — pick a sitting, drop a home pin, choose companions, see the subsidised fare, pay (mock mode confirms instantly).
+1. **Sign in with Google**, using the address you set as `ADMIN_EMAIL` so you get admin rights.
+2. **Book a seat** — pick a sitting, drop a home pin, choose companions, see the subsidised fare, and pay. With no Razorpay keys a local run confirms instantly; with test keys you get the real checkout (card `4111 1111 1111 1111`, any future expiry, any CVV).
 3. **Admin → Run routing engine** on the first JEE sitting the demo seeded. Jaipur draws about 190 seats against a 40-seat capacity, so it forms five buses — and each one serves a corridor out of the city rather than an arbitrary group: the northern towns together, the eastern together, the south-western together, and one bus for the students who live at the centre itself.
 4. **Copy a driver link** from the bus card and open it in a private window — no login. Hit **Simulate driving**.
 5. **Track bus live** from the student's My Bookings page and watch the bus move.
@@ -229,9 +229,9 @@ The fix would be to weight the cost function by passenger-minutes rather than bu
 
 **Why is routing idempotent?** An admin will click the button twice. Re-running deletes the session's buses and resets its bookings before rebuilding, so no booking is ever left pointing at a bus that no longer exists.
 
-**Why mock modes for maps, payments, and email?** So the project can be cloned and demonstrated with no third-party accounts, and so a lapsed API key cannot ruin a live demo.
+**Why mock modes for maps and email but not payments?** Maps and email degrade a feature; a faked payment fakes the feature. So the first two fall back silently and the project still runs with nothing but a database URL, while simulated payment confirmation is refused outside development with no override at all. There used to be one — `ALLOW_MOCK_PAYMENTS=true`, for a public demo with no gateway — and it was removed: an endpoint that marks a booking paid for free should not be one environment variable away from being live, and "somebody typed it deliberately" is thin comfort when the typing is copying a variable list into a dashboard. Razorpay **test keys** are free, need no KYC, and exercise the genuine checkout, order ids and signatures. Only the money is fake, which is the right thing to fake.
 
-**Why does the public demo accept simulated payments in production?** Because a demo nobody can complete a booking on demonstrates nothing — and the alternative, flipping `NODE_ENV` off `production`, would have disabled the JWT length check and the index guard too. Instead the exception is explicit: mock payments are refused in production unless `ALLOW_MOCK_PAYMENTS=true` was deliberately set. That keeps two different questions apart — *is this production?* and *is this deployment allowed to fake payments?* — so that merely forgetting to configure Razorpay can never expose "mark my booking paid for free". The server logs a loud warning when the flag is on, and the frontend shows visitors a banner rather than letting them believe they were charged.
+**Why is Google the only way to sign in?** There was a second path — email and password, with a six-digit OTP to prove the address, and a reset flow on the same machinery. Codes came from `crypto.randomInt`, were stored as bcrypt hashes, capped at five attempts and rate limited per address and per IP. It was careful, and it was undeliverable: free hosting tiers block outbound SMTP, and HTTP mail providers will not send to strangers from an unverified sender, so on the deployed site the code was generated, hashed and stored correctly and then went nowhere. An auth path that cannot deliver its own credential is not an auth path, it is a form that traps people. Google verifies the address, holds the password and handles recovery — and the side effect is that this application now stores no credential of any kind. There is no password to leak, no code to brute force and no reset flow to abuse.
 
 **Why does cancellation succeed even when the refund fails?** Because they are two systems and only one of them is ours. The seat is released and saved first; the gateway call happens after. If Razorpay times out, the worst case is a booking marked `refundStatus: 'failed'` with the amount owed — visible on the admin screen for a human to settle. Doing it the other way round means either holding a seat the student believes they cancelled, or refunding someone who still has a booking. An inconsistency you can see and fix beats one nobody knows about.
 
@@ -245,15 +245,15 @@ The fix would be to weight the cost function by passenger-minutes rather than bu
 
 **Tickets are readable by their owner or staff.** A ticket token being hard to guess is not authorisation — students share ticket screenshots, and the URL is printed under the QR code. Passenger phone numbers are returned only to staff.
 
-**OTPs are treated as credentials.** Generated with `crypto.randomInt`, stored as a bcrypt hash, capped at 5 attempts per account, rate-limited per IP, and subject to a resend cooldown. A 6-digit code has a million possibilities; without a cap that is minutes of scripted guessing, not a security control.
+**We store no credentials.** Sign-in is Google only, and a Google ID token is verified against our own client id before it is exchanged for our JWT — the audience check matters, because a token minted for any other application would otherwise be accepted here, and those tokens are handed to every site a user signs into. Nothing on a user record is secret. The strongest thing you can say about a password database is that you do not have one.
 
-**Payments are verified server-side.** The Razorpay signature is recomputed with an HMAC and compared in constant time, and the order id must be the one issued for that specific booking. Trusting the browser's "payment succeeded" callback would make the payment step decorative. Mock payments are hard-blocked when `NODE_ENV=production`.
+**Payments are verified server-side.** The Razorpay signature is recomputed with an HMAC and compared in constant time, and the order id must be the one issued for that specific booking — a signature Razorpay genuinely produced for a *different* order must not settle this one, or a single real payment could be replayed across every seat an attacker owns. Trusting the browser's "payment succeeded" callback would make the payment step decorative. Simulated confirmation is refused outside development, with no override.
 
 **Input is validated before it reaches the database.** Coordinates must be a well-formed `[lng, lat]` pair inside India — unchecked coordinates are really an unchecked price, since fare is derived from distance, and they previously allowed `NaN` to be persisted. Ids are validated before querying, so a malformed id is a 400 rather than a cast error.
 
 **Async errors always produce a response.** Express 4 ignores rejected promises from async handlers, which turns any thrown error into a hung request. Every controller is wrapped once, centrally, so no handler can be registered unwrapped.
 
-Also: `helmet`, an explicit CORS allowlist (no `*` fallback), a 100 kB body limit, rate limiting on auth and OTP routes, and boot-time refusal to start without `JWT_SECRET`.
+Also: `helmet`, an explicit CORS allowlist (no `*` fallback), a 100 kB body limit, rate limiting on the sign-in and driver routes, and boot-time refusal to start without `JWT_SECRET`.
 
 **Known trade-off:** the JWT is stored in `localStorage`, which is XSS-exposed. An httpOnly cookie with CSRF protection would be stronger; `localStorage` was chosen for a simpler SPA flow and is the honest answer if asked.
 
@@ -297,7 +297,7 @@ Only `MONGO_URI` and `JWT_SECRET` are required — the server refuses to start w
 | Fallback when unset | Behaviour |
 |---|---|
 | `GOOGLE_MAPS_API_KEY` | Straight-line distance estimates and nearest-neighbour stop ordering |
-| `RAZORPAY_KEY_ID/SECRET` | Mock payment flow (blocked in production) |
+| `RAZORPAY_KEY_ID/SECRET` | Mock payment flow **in development only** — required in production |
 | `RESEND_API_KEY` / `SMTP_*` | OTPs and confirmations printed to the server console |
 | `GOOGLE_CLIENT_ID` | Google sign-in hidden; email + password still works |
 

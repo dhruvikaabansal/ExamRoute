@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 import User from '../src/models/User.js';
 import Exam from '../src/models/Exam.js';
 import ExamSession from '../src/models/ExamSession.js';
@@ -15,14 +14,18 @@ export const JAIPUR = [75.7873, 26.9124];
 export const SIKAR = [75.1398, 27.6094];
 export const BIKANER = [73.3119, 28.0229];
 
-export async function makeUser({ role = 'student', email, password = 'password123' } = {}) {
+/*
+  Users no longer carry a credential of any kind — identity comes from Google
+  and the account here is just a record. So this creates one directly, and the
+  tests authenticate by signing a JWT rather than by going through a login
+  form that no longer exists.
+*/
+export async function makeUser({ role = 'student', email } = {}) {
   const address = email || `u${crypto.randomBytes(4).toString('hex')}@examroute.test`;
   return User.create({
     name: 'Test User',
     email: address,
-    authProvider: 'local',
-    passwordHash: await bcrypt.hash(password, 4),
-    emailVerified: true,
+    googleId: `google_${crypto.randomBytes(6).toString('hex')}`,
     role,
   });
 }

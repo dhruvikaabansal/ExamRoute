@@ -78,10 +78,10 @@ export async function createOrder(req, res) {
 /**
  * POST /api/payments/mock-confirm  { bookingId }   (DEV / EXPLICIT DEMO ONLY)
  *
- * Blocked in production unless ALLOW_MOCK_PAYMENTS=true was deliberately set.
- * Merely forgetting to configure Razorpay must never be enough to turn "mark
- * my booking paid for free" into a live endpoint — that is the difference
- * between an omission and a decision.
+ * Refused outside development, with no override. This exists so the project
+ * can be cloned and run with nothing but a database URL; it is not a way to
+ * deploy without a gateway. "Mark my booking paid for free" should not be one
+ * environment variable away from being live, so there is no such variable.
  */
 export async function mockConfirm(req, res) {
   if (!mockPaymentsAllowed())

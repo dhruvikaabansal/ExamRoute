@@ -94,10 +94,28 @@ describe('authentication guards (no DB reached)', () => {
     expect(res.body.message).toMatch(/driver link/i);
   });
 
-  it('validates input before authentication side effects', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({ name: 'A', email: 'nope', password: 'password123' });
+  it('rejects a Google sign-in with no credential', async () => {
+    const res = await request(app).post('/api/auth/google').send({});
     expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/credential/i);
+  });
+
+  /*
+    The removed auth surface, pinned closed. These were real endpoints; if one
+    is ever restored without its email delivery working, this fails rather
+    than quietly presenting a sign-up form nobody can complete.
+  */
+  it('no longer exposes the email and password endpoints', async () => {
+    for (const path of [
+      '/api/auth/register',
+      '/api/auth/login',
+      '/api/auth/verify-otp',
+      '/api/auth/resend-otp',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
+    ]) {
+      const res = await request(app).post(path).send({});
+      expect(res.status).toBe(404);
+    }
   });
 });

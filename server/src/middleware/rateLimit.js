@@ -3,15 +3,15 @@ import rateLimit from 'express-rate-limit';
 /**
  * Rate limiting.
  *
- * The endpoints that needed this most were the OTP ones. A 6-digit code has
- * a million possibilities and a ten-minute lifetime; with no throttle, that is
- * a scriptable brute force rather than a security control. `resendOtp` was
- * also an unauthenticated way to make our server email an arbitrary address
- * repeatedly.
+ * The endpoints that needed this most were the OTP ones, and they are gone
+ * with the email auth path — a six-digit code with a million possibilities
+ * and a ten-minute life is a brute force waiting to happen without a throttle.
+ * Removing the credential removed the attack, which is a better outcome than
+ * rate limiting it.
  *
- * Per-account limits live alongside these (see `otpAttempts` on the User
- * model): these caps are per IP, the counter is per account, and an attacker
- * has to get past both.
+ * What remains is bounding abuse rather than guessing: sign-in still calls out
+ * to Google on every request, and the driver endpoint is reachable by anyone
+ * holding a link.
  */
 
 const message = (msg) => ({ message: msg });
@@ -35,24 +35,13 @@ export const authLimiter = rateLimit({
   message: message('Too many attempts — try again in a few minutes'),
 });
 
-// OTP verification: the brute-force surface.
-export const otpVerifyLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-  message: message('Too many incorrect codes — request a new one shortly'),
-});
-
-// Sending OTP email: stops us being used as an email cannon.
-export const otpSendLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 6,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: message('Too many codes requested — please wait before trying again'),
-});
+/*
+  The OTP limiters lived here — one bounding code guesses, one stopping the
+  endpoint being used as an email cannon. Both went with the email auth path
+  they protected. A rate limiter guarding a route that no longer exists is
+  dead weight that still looks like a security control, which is worse than
+  no limiter at all: it invites the assumption that something is covered.
+*/
 
 // Driver devices post GPS every few seconds, so this ceiling is deliberately
 // high; it exists to bound abuse of a leaked link, not to throttle normal use.
