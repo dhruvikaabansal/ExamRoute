@@ -1,5 +1,28 @@
 # ExamRoute — resume points
 
+## LaTeX, three bullets (the version to use)
+
+```latex
+\resumeProjectHeading
+{\textbf{ExamRoute} -- Ride-Pooling Platform for Exam Candidates $|$ \emph{React, Node.js, Express, MongoDB}}
+{\href{https://exam-route.vercel.app/}{\underline{Live}}}
+\resumeItemListStart
+\resumeItem{Built a full-stack MERN platform pooling students into shared buses for exam centres, covering booking, payment, seat allocation, boarding, and live tracking.}
+\resumeItem{Built a routing engine that groups nearby students into buses and finds the shortest stop order for each, cutting travel distance 10--18\% compared to basic clustering.}
+\resumeItem{Back-computed pickup/departure times from each exam's reporting deadline; integrated Razorpay with \textbf{server-side HMAC signature verification}, Google OAuth exchanged for backend-issued JWTs, and MongoDB \texttt{2dsphere} geo-queries for nearest-stop matching.}
+\resumeItemListEnd
+```
+
+Optional fourth line, if the page has room — it is the strongest single
+signal of engineering discipline in the whole project:
+
+```latex
+\resumeItem{Covered the system with \textbf{150+ unit and integration tests} running against a real MongoDB in GitHub Actions CI; deployed on Render and Vercel.}
+```
+
+---
+
+
 Every number here is real and checkable from the repo. Nothing is padded,
 because the fastest way to lose an interview is to be asked about a metric you
 invented.
@@ -14,7 +37,7 @@ invented.
 - Built a full-stack MERN application that pools students travelling to the same exam centre onto shared buses — covering booking, payment, seat allocation, boarding and live tracking end to end.
 - Designed the routing engine that groups students into capacity-limited buses and orders each bus's stops, combining k-means clustering with a sweep algorithm and 2-opt local search to cut total route distance by 10–18% over clustering alone.
 - Scheduled every bus backwards from the exam's reporting time, so departures and per-stop pickup times are computed automatically and each bus reaches the centre before the gate closes.
-- Implemented the Razorpay payment flow with server-side HMAC signature verification, order-to-booking matching and a time-tiered refund policy; built authentication with JWT, Google OAuth and email OTP verification.
+- Implemented the Razorpay payment flow with server-side HMAC signature verification, order-to-booking matching and a time-tiered refund policy; built authentication with Google OAuth exchanged for backend-issued JWTs.
 - Used MongoDB geospatial queries (`2dsphere`, `$near`) to match each student's home location to the nearest pickup stop inside a 5 km catchment zone.
 - Wrote 150+ unit and integration tests running against a real MongoDB in GitHub Actions CI; deployed the API on Render and the frontend on Vercel.
 
@@ -27,7 +50,7 @@ invented.
 
 - Built a full-stack MERN application that pools students heading to the same exam centre onto shared buses — booking, payment, routing, boarding and live tracking.
 - Designed the routing engine that assigns students to capacity-limited buses and orders each route, combining k-means clustering with a sweep algorithm and 2-opt local search to cut total distance by 10–18%.
-- Implemented Razorpay payments with server-side signature verification, secured the API with JWT and Google OAuth, and backed it with 150+ tests running in GitHub Actions CI.
+- Implemented Razorpay payments with server-side signature verification, secured the API with Google OAuth and JWTs, and backed it with 150+ tests running in GitHub Actions CI.
 
 ---
 
