@@ -72,42 +72,32 @@ Keep this to hand. If an interviewer asks, you want the answer immediately.
 | 5 km catchment | `GEOFENCE_RADIUS_KM`, enforced by a `$near` query with `$maxDistance` |
 | Backwards scheduling | `computeArrivalTarget` honours the tighter of `reportingTime` and `gateClose − SAFETY_BUFFER_MIN` |
 
-## The Razorpay question — know the honest answer
+## The Razorpay question — you can answer this one fully now
 
-Say **"implemented"**, not *"processed payments"* or *"handled transactions"*.
-The difference is real and an interviewer will find it.
+**What is true, all of it:** the live deployment runs real Razorpay test-mode
+keys. Real order creation, the real checkout sheet, real order ids, real
+signatures — verified server-side with HMAC-SHA256 compared in constant time,
+plus the order-id-to-booking match that stops one payment settling a different
+seat. Refunds go through the Razorpay API. Only the money is test-mode.
 
-**What is true:** the full Razorpay flow is written — order creation, the
-checkout handoff, HMAC-SHA256 signature verification compared in constant time,
-the order-id-to-booking match that stops one real payment settling a different
-seat, and refunds through the Razorpay API. It is covered by tests that forge
-genuine signatures with the same crypto Razorpay uses, so the accept path and
-every reject path actually execute.
+So `"tested end to end against Razorpay test mode"` is simply accurate. Say
+**"implemented"** rather than *"processed payments"* — you have not handled real
+money, and the distinction is one an interviewer will respect you for making.
 
-**What is not true:** no money has ever moved through it. The public demo runs
-with `ALLOW_MOCK_PAYMENTS=true` because there are no live keys on it, and the
-banner on the site says so.
+**The detail worth volunteering,** because it shows you know which part of the
+integration is the security boundary:
 
-**If asked "did you test it against Razorpay?"** — the honest answer, which is
-also a good one:
+> The signature is an HMAC of `order_id|payment_id` keyed on the API secret, so
+> I could sign legitimate ones in tests and drive every path: a genuine
+> signature is accepted, a forged one refused, one signed with the wrong secret
+> refused, and — the one that matters most — a signature Razorpay *genuinely*
+> produced for a different order cannot settle this booking. Razorpay really did
+> sign that, so only my own order-id check stops it being replayed across every
+> seat an attacker owns.
 
-> The gateway itself, no — I never put live keys on the demo, so payments there
-> are simulated and the site says so. What I did test is the part that is
-> actually mine to get wrong: the signature verification. The signature is an
-> HMAC of `order_id|payment_id` keyed on the API secret, so I could sign
-> legitimate ones in the tests and prove that a genuine signature is accepted, a
-> forged one is refused, one signed with the wrong secret is refused, and a
-> genuine signature for a *different* order cannot settle this booking. That
-> last one matters most — Razorpay really did sign it, so only my own check
-> stops it being replayed.
-
-That answer is stronger than a claim of having taken real payments, because it
-shows you know which part of the integration is the security boundary.
-
-If you want to remove the caveat entirely, sign up for Razorpay test mode (free,
-no live money), put the test keys in `server/.env`, and complete one booking
-locally. Ten minutes, and then "tested end to end against Razorpay test mode" is
-simply true.
+**If asked why the demo takes no real money:** live mode needs business KYC and
+makes you liable for chargebacks on a site strangers can reach. Test mode
+exercises the identical code path. That is a deliberate choice, not a gap.
 
 ---
 
