@@ -21,7 +21,7 @@ function sendConfirmation(user, booking) {
   const stop = booking.assignedStop?.name;
   sendMail({
     to: user.email,
-    subject: '🎫 ExamRoute booking confirmed — all the best!',
+    subject: 'ExamRoute booking confirmed — all the best',
     text: `Hi ${user.name}, your bus seat is booked.
 
 Nearest pickup stop: ${stop || 'to be assigned'}${

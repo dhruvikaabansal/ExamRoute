@@ -296,13 +296,38 @@ describe.skipIf(!dbReady)('booking rules', () => {
     expect(res.status).toBe(400);
   });
 
-  it('prevents double booking the same sitting', async () => {
+  /*
+    This used to assert a 409 on the second attempt, and that assertion went
+    when resuming replaced refusing. The rule it was really protecting is
+    unchanged — one seat per student per sitting — so it is checked here at
+    the level that actually enforces it.
+
+    The controller looks for an existing booking first, but a check-then-write
+    is not a guarantee: two requests can both pass the check before either
+    writes. The unique index is what makes it true under a race, and that is
+    what this asserts, by going around the controller entirely.
+  */
+  it('cannot hold two seats on one sitting, even bypassing the API', async () => {
     const { exam, session, center, user } = await setup();
     const body = bookingBody(exam, session, center);
 
-    expect((await asUser(request(app).post('/api/bookings').send(body), user)).status).toBe(201);
-    const second = await asUser(request(app).post('/api/bookings').send(body), user);
-    expect(second.status).toBe(409);
+    const first = await asUser(request(app).post('/api/bookings').send(body), user);
+    expect(first.status).toBe(201);
+
+    const direct = Booking.create({
+      user: user._id,
+      exam: exam._id,
+      session: session._id,
+      center: center._id,
+      rollNumber: '2601000999',
+      homeLocation: { type: 'Point', coordinates: SIKAR },
+      seats: 1,
+      fare: 100,
+      status: 'pending',
+    });
+
+    await expect(direct).rejects.toThrow(/duplicate key|E11000/i);
+    expect(await Booking.countDocuments({ user: user._id, session: session._id })).toBe(1);
   });
 
   /**

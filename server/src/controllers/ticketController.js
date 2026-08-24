@@ -72,7 +72,7 @@ export async function boardTicket(req, res) {
   await booking.save();
 
   res.json({
-    message: 'Passenger boarded ✓',
+    message: 'Passenger boarded',
     boardedAt: booking.boardedAt,
     boardedAtLabel: formatIst(booking.boardedAt),
   });
