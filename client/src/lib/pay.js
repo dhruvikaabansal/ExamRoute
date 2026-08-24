@@ -12,10 +12,14 @@ function loadRazorpay() {
 }
 
 /**
- * Pays for an existing (pending) booking. Works in two modes:
- *  - DEV mock mode (no Razorpay keys): instantly confirms.
- *  - Real mode: opens Razorpay checkout and verifies server-side.
- * Resolves true on success, throws on failure/cancel.
+ * Pays for an existing (pending) booking.
+ *
+ * Two modes: with no Razorpay keys a local run confirms instantly, which keeps
+ * the project runnable with nothing but a database URL. Otherwise this opens
+ * the real checkout and the result is verified server-side — the browser's
+ * "payment succeeded" callback is not trusted, because anyone can produce one.
+ *
+ * Resolves true on success, throws on failure or cancellation.
  */
 export async function payBooking(bookingId, user) {
   const orderRes = await api.post('/payments/order', { bookingId });
@@ -37,7 +41,23 @@ export async function payBooking(bookingId, user) {
       name: 'ExamRoute',
       description: 'Bus seat booking',
       order_id: orderId,
-      prefill: { name: user?.name, email: user?.email },
+      /*
+        Prefill everything we already know.
+
+        Razorpay will not proceed without a mobile number, and omitting it put
+        an "Edit contact details" step in front of every payment — asking the
+        student to type a number they had already given us on their profile.
+        A form that asks twice for the same fact reads as broken even when
+        nothing is wrong.
+      */
+      prefill: {
+        name: user?.name,
+        email: user?.email,
+        contact: user?.phone || '',
+      },
+      // Checkout otherwise arrives in Razorpay blue, which looks like leaving
+      // the site mid-payment — the one moment that should feel most continuous.
+      theme: { color: '#db2777' },
       handler: async (response) => {
         try {
           await api.post('/payments/verify', {
