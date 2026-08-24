@@ -1,8 +1,12 @@
-# ExamRoute 🚌
+# ExamRoute
 
 [![CI](https://github.com/dhruvikaabansal/ExamRoute/actions/workflows/ci.yml/badge.svg)](https://github.com/dhruvikaabansal/ExamRoute/actions/workflows/ci.yml)
 
 A ride-pooling platform for exam-goers. Students from the same area heading to the same exam centre (JEE / NEET / CUET) get pooled onto a shared bus, with an auto-computed pickup route and departure time worked backwards from the exam's gate-close deadline — so nobody misses their exam.
+
+**Live demo → [exam-route.vercel.app](https://exam-route.vercel.app)** · API → [examroute-api.onrender.com](https://examroute-api.onrender.com/api/health)
+
+> Payments on the demo are simulated — no card is charged. Everything else behaves exactly as it would in production. The API sleeps on Render's free tier, so the first request takes ~30 seconds to wake it.
 
 **MERN** · JWT + Google OAuth · Razorpay · Google Maps Directions · Leaflet
 
@@ -21,6 +25,8 @@ Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments
 - [Testing](#testing)
 - [Environment variables](#environment-variables)
 - [Deployment](#deployment)
+
+Two companion documents: [`docs/TALKING-POINTS.md`](docs/TALKING-POINTS.md) for how to defend the design decisions, and [`docs/LAUNCH.md`](docs/LAUNCH.md) for the deploy and demo checklist.
 
 ---
 
@@ -97,7 +103,7 @@ npm run dev
 
 1. **Sign up** with email + password. The OTP is printed to the server console (no SMTP needed). Use your `ADMIN_EMAIL` so you get admin rights.
 2. **Book a seat** — pick a sitting, drop a home pin, choose companions, see the subsidised fare, pay (mock mode confirms instantly).
-3. **Admin → Run routing engine** on the first JEE sitting the demo seeded. Jaipur draws ~150 seats against a 40-seat capacity, so it forms four buses — and each one serves a corridor out of the city rather than an arbitrary group: the southern towns together, the eastern together, the western together, and one bus for the students who live at the centre.
+3. **Admin → Run routing engine** on the first JEE sitting the demo seeded. Jaipur draws about 190 seats against a 40-seat capacity, so it forms five buses — and each one serves a corridor out of the city rather than an arbitrary group: the northern towns together, the eastern together, the south-western together, and one bus for the students who live at the centre itself.
 4. **Copy a driver link** from the bus card and open it in a private window — no login. Hit **Simulate driving**.
 5. **Track bus live** from the student's My Bookings page and watch the bus move.
 6. **Show QR ticket**, open the verify link, and mark the passenger boarded.
@@ -191,13 +197,31 @@ Two constraints, and the engine honours the tighter one:
 
 Long routes from far towns legitimately depart the previous evening. Those buses are flagged `isOvernight` so the UI can label them, rather than showing a date that looks like a bug.
 
+### Two clocks per stop
+
+Every stop carries two times. `pickupTime` is when the bus is physically there — it falls straight out of the route arithmetic, and it is what the driver and the boarding list work from. `boardBy` is what the passenger is told, and it is deliberately `BOARDING_BUFFER_MIN` earlier (10 by default, which is what intercity operators actually print).
+
+The first version published one number for both, so a ticket read "be at your stop by 07:10" above "bus departs 07:10" — a schedule that only holds if nobody is ever thirty seconds late. And the cost of waiting is not paid by the person who is late: a bus that waits two minutes at each of six stops reaches the centre twelve minutes behind, for all forty people aboard, on the morning of an exam with a hard gate-close time.
+
+The buffer is a promise to the passenger, not slack in the route — departure, leg durations and arrival are untouched. A test pins exactly that, because the obvious wrong implementation subtracts the buffer from the departure time and makes the whole schedule drift ten minutes earlier on every re-run.
+
+### Known limitation: passenger ride time is not in the objective
+
+Clustering scores candidate solutions on **bus count first, kilometres second**. That is the right economic objective — no amount of shaved distance pays for an extra driver and vehicle — but it contains no term for how long any individual passenger sits on the bus.
+
+The consequence is visible in the seeded data: a bus can pick up at Jhunjhunu, detour east through Alwar and Dausa, and reach Jaipur in 6h20 when the direct journey from Jhunjhunu is about 3h. Nothing is wrong; the first-pickup town simply rides the whole corridor.
+
+The fix would be to weight the cost function by passenger-minutes rather than bus-kilometres, or to add a hard maximum ride time and accept an extra bus when it saves three hours for nine people. That is a deliberate next step, not an oversight — it trades cost against comfort, and which way to trade is an operator's decision rather than a programmer's.
+
 ---
 
 ## Design decisions worth asking about
 
 **Why no Vehicle Routing solver?** It is NP-hard, and Directions already solves the sub-problem that matters (ordering ~5–10 stops) with real road data. Clustering plus delegation gets a correct answer in milliseconds and can be explained on a whiteboard.
 
-**Why is the fare subsidy larger for longer journeys?** That is the entire social point. Students from far-off small towns have the longest and costliest journeys, so subsidy rises 5% per 25 km up to a 50% cap. Companions pay a full seat but receive the same subsidy.
+**Why is the fare subsidy larger for longer journeys?** That is the entire social point. Students from far-off small towns have the longest and costliest journeys, so subsidy rises 5% per 50 km of distance up to a 50% cap. Companions pay a full seat but receive the same subsidy.
+
+**Why 50 km bands and not 25?** Because the first version used 25 km, which put the 50% ceiling at 250 km — and almost nobody in this system travels less than that. Rajasthan is roughly 800 km across with sparse exam centres, so a real home-to-centre leg is 150–550 km. Every single passenger hit the cap, which meant a graduated social policy behaved as a flat half-price discount: the tapering existed in the code and was invisible in every fare the app had ever quoted. Widening the band moves the ceiling to 500 km, so the curve now spans the distances people actually travel — about 5% from the next district, 25% from across the state, 50% only for the extreme journeys the cap was written for. The test asserts a *distribution* rather than a formula: an ordinary intercity journey must land strictly below the cap, and a spread of real distances must produce visibly different rates. A curve that collapses to a flat discount fails it.
 
 **Why store exam times as UTC instants built from IST components?** Because `date.setHours(9)` encodes the *server's* timezone. That is correct on a laptop set to IST and silently wrong on a UTC host, where a 9:00 AM shift becomes 09:00Z and renders as 2:30 PM to a student in India. `utils/time.js` builds every exam time from explicit IST components; the client formats everything back to `Asia/Kolkata`. The test suite runs with `TZ=UTC` so a regression fails a test instead of surviving to production.
 
@@ -258,7 +282,7 @@ If neither is reachable, the integration specs skip with a visible warning rathe
 
 That is the right default on a laptop and the wrong one in CI, where it would produce a green badge for a run in which the entire integration layer never executed. So CI sets `REQUIRE_DB=1`, which turns a missing database from a footnote into a failure. Worth knowing if you ever see the suite pass suspiciously fast: check whether it actually ran, or merely declined to.
 
-Notable cases: buses are never overfilled even when every student lives at the same point; routing is idempotent and leaves no orphaned bookings; a student cannot read another student's booking or ticket; a rotated driver link stops working; bookings are refused after the deadline; malformed coordinates are rejected rather than stored as `NaN`; refunds are monotonic in time and never exceed what was paid.
+Notable cases: buses are never overfilled even when every student lives at the same point; routing is idempotent and leaves no orphaned bookings; a student cannot read another student's booking or ticket; a rotated driver link stops working; bookings are refused after the deadline; malformed coordinates are rejected rather than stored as `NaN`; refunds are monotonic in time and never exceed what was paid; the boarding buffer moves the passenger's time without moving the bus's; and the subsidy curve must still discriminate between real distances rather than handing everyone the cap.
 
 ### CI
 
@@ -277,7 +301,19 @@ Only `MONGO_URI` and `JWT_SECRET` are required — the server refuses to start w
 | `SMTP_*` | OTPs and confirmations printed to the server console |
 | `GOOGLE_CLIENT_ID` | Google sign-in hidden; email + password still works |
 
-Cancellation tiers are configurable too: `FULL_REFUND_HOURS` (default 72), `PARTIAL_REFUND_HOURS` (24), `PARTIAL_REFUND_PCT` (50). They live in the environment because a refund policy is a business decision, not a constant.
+The policy numbers all live in the environment, because they are business decisions rather than constants:
+
+| Variable | Default | What it decides |
+|---|---|---|
+| `BUS_CAPACITY` | 40 | Seats per bus; companions count toward it |
+| `SAFETY_BUFFER_MIN` | 60 | Never plan to arrive later than gate close minus this |
+| `BOARDING_BUFFER_MIN` | 10 | How early passengers are asked to be at their stop |
+| `GEOFENCE_RADIUS_KM` | 5 | Catchment radius around each pickup stop |
+| `SUBSIDY_BAND_KM` | 50 | Distance that earns one more band of subsidy |
+| `SUBSIDY_PER_BAND_PCT` | 5 | Subsidy added per band — so the 50% cap arrives at 500 km |
+| `FULL_REFUND_HOURS` | 72 | Cancel earlier than this for a full refund |
+| `PARTIAL_REFUND_HOURS` | 24 | Inside this, nothing is refundable |
+| `PARTIAL_REFUND_PCT` | 50 | The refund between those two thresholds |
 
 ---
 
