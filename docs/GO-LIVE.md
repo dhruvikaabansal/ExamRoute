@@ -52,23 +52,30 @@ npm run dev
 
 Sign in with Google, book a seat, and pay with the test card:
 
-**Easiest: pay by UPI.** Choose UPI and enter `success@razorpay` — it always
-succeeds and skips the card rules entirely.
+**Easiest: Netbanking.** Choose it, pick any bank, and Razorpay shows a **mock
+bank page with Success and Failure buttons** — test mode never redirects to a
+real bank. No card rules, no account settings to enable.
 
-By card, use a **domestic** test card, any future expiry, any CVV, and any OTP:
+Worth clicking **Failure** once too: the booking should stay unpaid and
+bookable, which is the path most people never test.
 
-| Card | Network |
+Other methods, if you want them:
+
+| Method | What to use |
 |---|---|
-| `4111 1111 1111 1111` | Visa |
-| `5267 3181 8797 5449` | Mastercard |
+| Cards | `5267 3181 8797 5449`, any future expiry, any CVV, any OTP |
+| UPI | `success@razorpay` — only if UPI is enabled on your account |
 
 **Expect:** the real Razorpay window opens, payment succeeds, and you land on
 the confirmation page. That is the whole integration working end to end.
 
-**If it says "International cards are not supported":** that card is on
-Razorpay's international list for your account. Use UPI `success@razorpay`, or
-try the other card above — the current list is in
+**If a card says "International cards are not supported":** that number is on
+Razorpay's international list for your account. Use Netbanking, or another
+number from
 [Razorpay's test card docs](https://razorpay.com/docs/payments/payments/test-card-details/).
+
+**If UPI is not offered at all:** it is not enabled on your Razorpay account.
+That is a dashboard setting, not anything in this code.
 
 **If the Razorpay window does not open at all:** the keys are wrong, or still
 have the `rzp_test_xxxx` placeholder in them.
