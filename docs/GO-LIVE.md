@@ -52,18 +52,26 @@ npm run dev
 
 Sign in with Google, book a seat, and pay with the test card:
 
-| Field | Value |
+**Easiest: pay by UPI.** Choose UPI and enter `success@razorpay` — it always
+succeeds and skips the card rules entirely.
+
+By card, use a **domestic** test card, any future expiry, any CVV, and any OTP:
+
+| Card | Network |
 |---|---|
-| Card | `4111 1111 1111 1111` |
-| Expiry | any future date |
-| CVV | any 3 digits |
-| OTP | any digits, or press Skip |
+| `4111 1111 1111 1111` | Visa |
+| `5267 3181 8797 5449` | Mastercard |
 
 **Expect:** the real Razorpay window opens, payment succeeds, and you land on
 the confirmation page. That is the whole integration working end to end.
 
-**If the Razorpay window does not open:** the keys are wrong or still have the
-`rzp_test_xxxx` placeholder in them.
+**If it says "International cards are not supported":** that card is on
+Razorpay's international list for your account. Use UPI `success@razorpay`, or
+try the other card above — the current list is in
+[Razorpay's test card docs](https://razorpay.com/docs/payments/payments/test-card-details/).
+
+**If the Razorpay window does not open at all:** the keys are wrong, or still
+have the `rzp_test_xxxx` placeholder in them.
 
 ---
 

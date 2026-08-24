@@ -85,8 +85,28 @@ export async function createBooking(req, res) {
   const address = req.body.address ? String(req.body.address).slice(0, 200) : undefined;
   const rollNumber = assertRollNumber(req.body.rollNumber);
 
+  /**
+   * One booking per student per sitting — but "already exists" is three
+   * different situations, and treating them alike was a dead end.
+   *
+   * Abandoning the payment sheet is completely ordinary: the card is in the
+   * other room, the UPI app does not open, you change your mind about a
+   * companion seat. The unpaid booking stays behind, and the next attempt hit
+   * a flat "You already booked this session" — from a page that shows no
+   * booking, with no way forward. The seat was reserved, unpaid, and
+   * unreachable, and the only escape was to find it under My Bookings and
+   * guess that the button there was the same one.
+   *
+   * So a still-unpaid booking is *resumed* rather than refused, and refreshed
+   * with whatever was entered this time, since the reason for coming back is
+   * often that something needed changing.
+   */
   const existing = await Booking.findOne({ user: req.user._id, session: session._id });
-  if (existing) throw ApiError.conflict('You already booked this session');
+
+  if (existing && ['paid', 'assigned'].includes(existing.status))
+    throw ApiError.conflict(
+      'You have already paid for a seat on this sitting — see it under My Bookings.'
+    );
 
   // Fare is always derived server-side from validated coordinates — the client
   // never supplies a price, only a location we have checked.
@@ -100,10 +120,8 @@ export async function createBooking(req, res) {
   // routing engine, which uses this same function so the answer cannot drift.
   const assigned = await assignStop(coordinates);
 
-  const booking = await Booking.create({
-    user: req.user._id,
+  const details = {
     exam: exam._id,
-    session: session._id,
     center: center._id,
     rollNumber,
     homeLocation: { type: 'Point', coordinates, address },
@@ -114,7 +132,6 @@ export async function createBooking(req, res) {
     subsidyPercent,
     fare,
     status: 'pending',
-    ticketToken: crypto.randomBytes(24).toString('hex'),
     assignedStop: assigned
       ? { name: assigned.stop.name, coordinates: assigned.stop.location.coordinates }
       : undefined,
@@ -125,6 +142,37 @@ export async function createBooking(req, res) {
     // and thrown away, so a student 60 km from their nearest stop was shown
     // the same confident message as one living 2 km away.
     stopInsideZone: assigned?.insideZone ?? false,
+  };
+
+  if (existing) {
+    Object.assign(existing, details);
+
+    /*
+      A cancelled seat being re-booked starts clean. Carrying the old refund
+      trail forward would leave a live booking claiming money was returned for
+      it, and the admin screen counts unsettled refunds — a stale `failed` here
+      would show as money owed on a seat that was paid for again.
+    */
+    existing.refundStatus = 'none';
+    existing.refundId = undefined;
+    existing.refundAmount = undefined;
+    existing.refundedAt = undefined;
+    existing.refundError = undefined;
+    existing.razorpayOrderId = undefined;
+    existing.razorpayPaymentId = undefined;
+    if (!existing.ticketToken) existing.ticketToken = crypto.randomBytes(24).toString('hex');
+
+    await existing.save();
+    // 200 rather than 201: nothing was created. The client uses `resumed` to
+    // say "picking up where you left off" instead of "booked".
+    return res.status(200).json({ ...existing.toJSON(), resumed: true });
+  }
+
+  const booking = await Booking.create({
+    user: req.user._id,
+    session: session._id,
+    ticketToken: crypto.randomBytes(24).toString('hex'),
+    ...details,
   });
 
   res.status(201).json(booking);

@@ -123,7 +123,21 @@ export default function BookExam() {
       await payBooking(booking._id, user);
       navigate(`/booking/${booking._id}/confirmed`);
     } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Something went wrong');
+      /*
+        Cancelling the payment sheet is not an error, it is a decision. The
+        seat is held unpaid either way, so say that rather than showing the
+        raw failure — "Payment cancelled" as a red alert reads like something
+        broke, and the student needs to know the booking is still waiting for
+        them rather than lost.
+      */
+      if (err.message === 'Payment cancelled') {
+        alert(
+          'Payment cancelled. Your seat is held unpaid — finish paying here, or ' +
+            'from My Bookings whenever you are ready.'
+        );
+      } else {
+        alert(err.response?.data?.message || err.message || 'Something went wrong');
+      }
     } finally {
       setBusy(false);
     }

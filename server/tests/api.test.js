@@ -174,6 +174,65 @@ describe.skipIf(!dbReady)('booking rules', () => {
     expect(res.body.assignedStop?.name).toBeTruthy();
   });
 
+  /*
+    Abandoning the payment sheet is ordinary — the card is in the other room,
+    the UPI app does not open. The unpaid booking stays behind, and a flat
+    "you already booked this session" on the next attempt was a dead end: the
+    seat was reserved, unpaid, and unreachable from the page the student was
+    standing on.
+  */
+  it('resumes an unpaid booking instead of refusing a second attempt', async () => {
+    const { exam, session, center, user } = await setup();
+    const body = bookingBody(exam, session, center);
+
+    const first = await asUser(request(app).post('/api/bookings').send(body), user);
+    expect(first.status).toBe(201);
+
+    const second = await asUser(request(app).post('/api/bookings').send(body), user);
+    expect(second.status).toBe(200);
+    expect(second.body.resumed).toBe(true);
+    expect(second.body._id).toBe(first.body._id); // the same seat, not a new one
+
+    // And still exactly one, because the unique index is what it was protecting.
+    const count = await Booking.countDocuments({ user: user._id, session: session._id });
+    expect(count).toBe(1);
+  });
+
+  it('applies changes made on the second attempt', async () => {
+    const { exam, session, center, user } = await setup();
+    await asUser(
+      request(app).post('/api/bookings').send(bookingBody(exam, session, center)),
+      user
+    );
+
+    // Came back to add a parent — the usual reason for abandoning the first go.
+    const again = await asUser(
+      request(app)
+        .post('/api/bookings')
+        .send(bookingBody(exam, session, center, { companions: 1 })),
+      user
+    );
+    expect(again.status).toBe(200);
+    expect(again.body.seats).toBe(2);
+    expect(again.body.fare).toBeGreaterThan(0);
+  });
+
+  it('still refuses a second booking once the first is paid', async () => {
+    const { exam, session, center, user } = await setup();
+    const first = await asUser(
+      request(app).post('/api/bookings').send(bookingBody(exam, session, center)),
+      user
+    );
+    await Booking.findByIdAndUpdate(first.body._id, { status: 'paid' });
+
+    const second = await asUser(
+      request(app).post('/api/bookings').send(bookingBody(exam, session, center)),
+      user
+    );
+    expect(second.status).toBe(409);
+    expect(second.body.message).toMatch(/already paid/i);
+  });
+
   it('rejects coordinates outside India', async () => {
     const { exam, session, center, user } = await setup();
     const res = await asUser(
