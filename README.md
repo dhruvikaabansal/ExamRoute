@@ -330,6 +330,8 @@ Two things to get right, both of which fail quietly if you don't:
 
 **Email will not work over SMTP on a free tier.** Render, Fly and Railway all block outbound ports 25, 465 and 587 as an anti-spam measure, so correct Gmail credentials still produce `Connection timeout` on every send — the port is shut, not the password wrong. This is worth knowing because it fails in the most misleading way possible: the credentials check out, the config looks right, and the only symptom is silence. Set `RESEND_API_KEY` instead and mail goes over HTTPS like any other request. `GET /api/health` reports which transport is in use and the last delivery error, so the answer to "did that email actually send?" is one request away rather than a guess.
 
+Note that Resend's shared `onboarding@resend.dev` sender is a sandbox: it only delivers to the address the Resend account was created with, and returns 403 for anyone else. Reaching real visitors means verifying a domain you own. Where that is not available, the app degrades honestly instead of silently — the send fails, health reports it, and the sign-up screen tells the visitor to use Google sign-in rather than wait for a code that cannot arrive.
+
 ---
 
 ## License
