@@ -5,7 +5,6 @@ import routes from './routes/index.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { demoMode } from './services/paymentGateway.js';
-import { mailerDevMode, mailerStatus } from './services/mailer.js';
 
 /**
  * The Express app, built separately from the server that listens on a port.
@@ -46,19 +45,6 @@ export function createApp() {
       // Advertised so the frontend can tell visitors that payments are
       // simulated, rather than letting them assume they were charged.
       demoMode: demoMode(),
-      /*
-        Whether email actually leaves the building.
-
-        Nothing depends on this for sign-in any more — that was the point of
-        moving to Google-only — so a broken mailer no longer locks anyone out.
-        It is still reported because booking confirmations use it, and
-        "configured" turned out to be the wrong question: the deployed API had
-        valid SMTP credentials and every send timed out anyway, because the
-        host blocks the ports. So this reports the last observed outcome, not
-        the presence of settings.
-      */
-      emailConfigured: !mailerDevMode,
-      email: mailerStatus(),
     })
   );
 

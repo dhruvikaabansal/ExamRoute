@@ -6,11 +6,11 @@ A ride-pooling platform for exam-goers. Students from the same area heading to t
 
 **Live demo → [exam-route.vercel.app](https://exam-route.vercel.app)** · API → [examroute-api.onrender.com](https://examroute-api.onrender.com/api/health)
 
-> Payments on the demo are simulated — no card is charged. Everything else behaves exactly as it would in production. The API sleeps on Render's free tier, so the first request takes ~30 seconds to wake it.
+> The demo runs the real Razorpay checkout in **test mode** — genuine orders and signatures, no money. Card `5267 3181 8797 5449` with any future expiry and CVV, or pick Netbanking and press Success on the mock bank page. You can also skip signing in and press **Explore with a guest account**. The API sleeps on Render's free tier, so the first request takes ~30 seconds to wake it.
 
 **MERN** · JWT + Google OAuth · Razorpay · Google Maps Directions · Leaflet
 
-Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments, maps, and email all have working offline fallbacks.
+Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments and maps both have working offline fallbacks.
 
 ---
 
@@ -52,7 +52,7 @@ Alongside it, one button mints a throwaway student account with no sign-up at al
 
 **Admin.** Run routing per date and shift, see every bus with its route, seat load and driver link, and work a **boarding list** per bus — every passenger grouped by pickup stop in the order the bus visits them, ticked off as they arrive, so at departure you know exactly who has not shown up.
 
-> **On identity verification (worth raising before you are asked):** no third party can *digitally* confirm that someone is a genuine exam candidate. Only NTA can, and there is no public API. The only real digital path is **DigiLocker**, which requires partner-organisation onboarding that a student project cannot obtain. So ExamRoute uses honest layers instead: email OTP (deters throwaway signups), real payment (skin in the game), and a **human admit-card check at boarding** via the QR. The app verifies the *ticket*; a person verifies the *person*.
+> **On identity verification (worth raising before you are asked):** no third party can *digitally* confirm that someone is a genuine exam candidate. Only NTA can, and there is no public API. The only real digital path is **DigiLocker**, which requires partner-organisation onboarding that a student project cannot obtain. So ExamRoute uses honest layers instead: sign-in through Google (not a throwaway account), real payment (skin in the game), and a **human admit-card check at boarding** via the QR. The app verifies the *ticket*; a person verifies the *person*.
 
 ---
 
@@ -231,7 +231,7 @@ The fix would be to weight the cost function by passenger-minutes rather than bu
 
 **Why is routing idempotent?** An admin will click the button twice. Re-running deletes the session's buses and resets its bookings before rebuilding, so no booking is ever left pointing at a bus that no longer exists.
 
-**Why mock modes for maps and email but not payments?** Maps and email degrade a feature; a faked payment fakes the feature. So the first two fall back silently and the project still runs with nothing but a database URL, while simulated payment confirmation is refused outside development with no override at all. There used to be one — `ALLOW_MOCK_PAYMENTS=true`, for a public demo with no gateway — and it was removed: an endpoint that marks a booking paid for free should not be one environment variable away from being live, and "somebody typed it deliberately" is thin comfort when the typing is copying a variable list into a dashboard. Razorpay **test keys** are free, need no KYC, and exercise the genuine checkout, order ids and signatures. Only the money is fake, which is the right thing to fake.
+**Why a mock mode for maps but not payments?** A missing maps key degrades a feature; a faked payment fakes the feature. So maps falls back silently and the project still runs with nothing but a database URL, while simulated payment confirmation is refused outside development with no override at all. There used to be one — `ALLOW_MOCK_PAYMENTS=true`, for a public demo with no gateway — and it was removed: an endpoint that marks a booking paid for free should not be one environment variable away from being live, and "somebody typed it deliberately" is thin comfort when the typing is copying a variable list into a dashboard. Razorpay **test keys** are free, need no KYC, and exercise the genuine checkout, order ids and signatures. Only the money is fake, which is the right thing to fake.
 
 **Why is Google the only way to sign in?** There was a second path — email and password, with a six-digit OTP to prove the address, and a reset flow on the same machinery. Codes came from `crypto.randomInt`, were stored as bcrypt hashes, capped at five attempts and rate limited per address and per IP. It was careful, and it was undeliverable: free hosting tiers block outbound SMTP, and HTTP mail providers will not send to strangers from an unverified sender, so on the deployed site the code was generated, hashed and stored correctly and then went nowhere. An auth path that cannot deliver its own credential is not an auth path, it is a form that traps people. Google verifies the address, holds the password and handles recovery — and the side effect is that this application now stores no credential of any kind. There is no password to leak, no code to brute force and no reset flow to abuse.
 
@@ -300,8 +300,7 @@ Only `MONGO_URI` and `JWT_SECRET` are required — the server refuses to start w
 |---|---|
 | `GOOGLE_MAPS_API_KEY` | Straight-line distance estimates and nearest-neighbour stop ordering |
 | `RAZORPAY_KEY_ID/SECRET` | Mock payment flow **in development only** — required in production |
-| `RESEND_API_KEY` / `SMTP_*` | OTPs and confirmations printed to the server console |
-| `GOOGLE_CLIENT_ID` | Google sign-in hidden; email + password still works |
+| `GOOGLE_CLIENT_ID` | Sign-in is refused — Google is the only real account path |
 
 The policy numbers all live in the environment, because they are business decisions rather than constants:
 
@@ -330,7 +329,7 @@ Two things to get right, both of which fail quietly if you don't:
 - `NODE_ENV=production` — blocks mock payments, enforces a 32-character minimum on `JWT_SECRET`, and stops index reconciliation on every boot.
 - `CLIENT_URL` — the exact origin of the deployed frontend. There is no wildcard CORS fallback, so a wrong value fails visibly in the browser instead of silently opening the API to everyone.
 
-**Email will not work over SMTP on a free tier.** Render, Fly and Railway all block outbound ports 25, 465 and 587 as an anti-spam measure, so correct Gmail credentials still produce `Connection timeout` on every send — the port is shut, not the password wrong. This is worth knowing because it fails in the most misleading way possible: the credentials check out, the config looks right, and the only symptom is silence. Set `RESEND_API_KEY` instead and mail goes over HTTPS like any other request. `GET /api/health` reports which transport is in use and the last delivery error, so the answer to "did that email actually send?" is one request away rather than a guess.
+**There is no email, deliberately.** Sending it reliably needs a domain you own and have verified — free tiers block outbound SMTP, and transactional providers only deliver to the sender's own address until a domain is proved. What that produced was a confirmation email reaching exactly one person and silently failing for everyone else, which is worse than not sending one: the student stops looking for the information and starts waiting for it. Everything a booking needs lives in the app instead — the confirmation screen, My Bookings, the QR ticket, and the departure time once routing runs. Nothing about the journey depends on a message that cannot be guaranteed.
 
 Note that Resend's shared `onboarding@resend.dev` sender is a sandbox: it only delivers to the address the Resend account was created with, and returns 403 for anyone else. Reaching real visitors means verifying a domain you own. Where that is not available, the app degrades honestly instead of silently — the send fails, health reports it, and the sign-up screen tells the visitor to use Google sign-in rather than wait for a code that cannot arrive.
 

@@ -26,4 +26,3 @@ process.env.PARTIAL_REFUND_PCT = process.env.PARTIAL_REFUND_PCT || '50';
 delete process.env.GOOGLE_MAPS_API_KEY;
 delete process.env.RAZORPAY_KEY_ID;
 delete process.env.RAZORPAY_KEY_SECRET;
-delete process.env.SMTP_HOST;

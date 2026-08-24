@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import Booking from '../models/Booking.js';
-import { sendMail } from '../services/mailer.js';
 import { ApiError } from '../utils/apiError.js';
 import { assertObjectId } from '../utils/validate.js';
 import { formatIst } from '../utils/time.js';
@@ -17,24 +16,21 @@ import {
  * `services/paymentGateway.js` so the refund path reaches the same answer.
  */
 
-function sendConfirmation(user, booking) {
-  const stop = booking.assignedStop?.name;
-  sendMail({
-    to: user.email,
-    subject: 'ExamRoute booking confirmed — all the best',
-    text: `Hi ${user.name}, your bus seat is booked.
-
-Nearest pickup stop: ${stop || 'to be assigned'}${
-      booking.stopEtaMin ? ` (~${booking.stopEtaMin} min from home)` : ''
-    }
-Seats: ${booking.seats}
-Paid: ₹${booking.fare}${
-      booking.subsidyPercent ? ` (after ${booking.subsidyPercent}% distance subsidy)` : ''
-    }
-
-We'll confirm your exact bus and departure time once routing runs. All the best for your exam!`,
-  }).catch((err) => console.warn('Confirmation email failed:', err.message));
-}
+/*
+ * There is no confirmation email, and that is deliberate.
+ *
+ * Sending one reliably needs a domain we own and have verified: hosting tiers
+ * block outbound SMTP, and transactional providers will only deliver to the
+ * sender's own address until a domain is proved. What that produced was an
+ * email that reached exactly one person and silently 403'd for everyone else —
+ * and a confirmation that quietly does not arrive is worse than none, because
+ * the student stops looking for the information and starts waiting for it.
+ *
+ * So the ticket lives where it cannot go missing. Payment lands on the
+ * confirmation screen, the booking is in My Bookings with its stop, fare and
+ * QR code, and the departure time appears there once routing runs. Nothing
+ * about the journey depends on a message we cannot guarantee.
+ */
 
 /** Loads a booking the caller owns and is allowed to pay for. */
 async function loadPayableBooking(req) {
@@ -95,7 +91,6 @@ export async function mockConfirm(req, res) {
   booking.paidAt = new Date();
   await booking.save();
 
-  sendConfirmation(req.user, booking);
   res.json({ success: true, booking, mock: true });
 }
 
@@ -131,6 +126,5 @@ export async function verifyPayment(req, res) {
   booking.paidAt = new Date();
   await booking.save();
 
-  sendConfirmation(req.user, booking);
   res.json({ success: true, booking, paidAtLabel: formatIst(booking.paidAt) });
 }
