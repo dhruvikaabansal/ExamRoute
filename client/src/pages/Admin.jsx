@@ -203,11 +203,24 @@ export default function Admin() {
       )}
 
       <div className="space-y-4">
-        {buses.map((bus) => (
-          <div key={bus._id} className="card-pad">
+        {buses.map((bus) => {
+          /*
+            A bus whose arrival time has passed has already run. Its driver
+            link and its GPS controls are no longer live actions, and leaving
+            them looking identical to tomorrow's buses is how somebody rotates
+            a token on the wrong row.
+          */
+          const completed = new Date(bus.arrivalTime).getTime() < Date.now();
+          return (
+          <div key={bus._id} className={`card-pad ${completed ? 'opacity-70' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-medium">
                 {bus.label}
+                {completed && (
+                  <span className="ml-2 text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                    trip completed
+                  </span>
+                )}
                 {bus.isOvernight && (
                   <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
                     overnight
@@ -252,40 +265,43 @@ export default function Admin() {
               old one — the recovery path for a link that leaks.
             */}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-              <Link
-                to={`/manifest/${bus._id}`}
-                className="btn-dark btn-sm"
-              >
-                Boarding list
+              <Link to={`/manifest/${bus._id}`} className="btn-dark btn-sm">
+                {completed ? 'Who travelled' : 'Boarding list'} →
               </Link>
-              <a
-                href={driverUrl(bus)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-brand hover:underline"
-              >
-                Open driver page
-              </a>
-              <button
-                onClick={async () => {
-                  await copy(driverUrl(bus));
-                  setCopied(bus._id);
-                }}
-                className="btn-outline btn-sm"
-              >
-                {copied === bus._id ? '✓ Copied' : 'Copy driver link'}
-              </button>
-              <button
-                onClick={() => rotate(bus._id)}
-                className="btn-outline btn-sm"
-                title="Invalidates the current link and issues a new one"
-              >
-                Rotate link
-              </button>
-              <span className="text-xs text-slate-400">no login required</span>
+              {/* Driver controls are live actions; a finished trip has none. */}
+              {!completed && (
+                <>
+                  <a
+                    href={driverUrl(bus)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand hover:underline"
+                  >
+                    Open driver page
+                  </a>
+                  <button
+                    onClick={async () => {
+                      await copy(driverUrl(bus));
+                      setCopied(bus._id);
+                    }}
+                    className="btn-outline btn-sm"
+                  >
+                    {copied === bus._id ? 'Copied' : 'Copy driver link'}
+                  </button>
+                  <button
+                    onClick={() => rotate(bus._id)}
+                    className="btn-outline btn-sm"
+                    title="Invalidates the current link and issues a new one"
+                  >
+                    Rotate link
+                  </button>
+                  <span className="text-xs text-slate-400">no login required</span>
+                </>
+              )}
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {buses.length === 0 && (
           <p className="text-sm text-slate-500">
