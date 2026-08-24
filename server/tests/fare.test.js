@@ -34,6 +34,35 @@ describe('fare model', () => {
     expect(extreme.subsidyPercent).toBeLessThanOrEqual(cap);
   });
 
+  /*
+    The bug this guards against is a policy that is graduated on paper and
+    flat in practice. With 25 km bands the 50% ceiling arrived at 250 km, and
+    since essentially nobody in this system travels less than that, every
+    passenger got the cap — the tapering existed only in the source.
+
+    So the assertion is not about a formula, it is about the distribution: a
+    normal intercity journey must land strictly below the ceiling, and a
+    spread of real distances must produce visibly different rates.
+  */
+  it('does not hand the cap to a typical journey', () => {
+    const cap = Number(process.env.MAX_SUBSIDY_PCT || 50);
+    const typical = computeFare(BIKANER, JAIPUR, 1); // ~280 km, an ordinary leg
+    expect(typical.distanceKm).toBeGreaterThan(200);
+    expect(typical.subsidyPercent).toBeLessThan(cap);
+    expect(typical.subsidyPercent).toBeGreaterThan(0);
+  });
+
+  it('spreads subsidy across the distances people actually travel', () => {
+    const rates = [
+      computeFare([75.82, 26.45], JAIPUR, 1), // ~55 km, next district
+      computeFare(SIKAR, JAIPUR, 1), // ~110 km
+      computeFare(BIKANER, JAIPUR, 1), // ~280 km, across the state
+    ].map((q) => q.subsidyPercent);
+
+    expect(new Set(rates).size).toBe(3);
+    expect(rates).toEqual([...rates].sort((a, b) => a - b));
+  });
+
   it('never returns a payable fare above the base fare', () => {
     for (const from of [SIKAR, BIKANER, [74.63, 25.34]]) {
       const { fare, baseFare } = computeFare(from, JAIPUR, 2);

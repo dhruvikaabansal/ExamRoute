@@ -63,7 +63,9 @@ services:
         value: 100
       - key: MAX_SUBSIDY_PCT
         value: 50
-      - key: SUBSIDY_PER_25KM
+      - key: SUBSIDY_BAND_KM
+        value: 50
+      - key: SUBSIDY_PER_BAND_PCT
         value: 5
       - key: BUS_CAPACITY
         value: 40

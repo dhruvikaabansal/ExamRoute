@@ -201,8 +201,7 @@ export default function MyBookings() {
                     wait at six stops does not make forty people late.
                   */}
                   <p>
-                    Be at your stop by:{' '}
-                    <b>{fmtDateTime(b.boardBy || b.pickupTime)}</b>
+                    Be at your stop by: <b>{fmtDateTime(b.boardBy || b.pickupTime)}</b>
                     {(b.boardBy || b.pickupTime) && (
                       <span className="text-slate-500">
                         {' '}
@@ -210,9 +209,18 @@ export default function MyBookings() {
                       </span>
                     )}
                   </p>
-                  <p>
-                    Bus reaches your stop: <b>{fmtDateTime(b.pickupTime)}</b>
-                  </p>
+                  {/*
+                    Only worth a line of its own when it is a different time.
+                    Buses routed before the boarding buffer existed have no
+                    boardBy, and printing the same clock twice under two
+                    different labels is exactly the confusion the buffer was
+                    added to remove.
+                  */}
+                  {b.boardBy && (
+                    <p>
+                      Bus reaches your stop: <b>{fmtDateTime(b.pickupTime)}</b>
+                    </p>
+                  )}
                   <p>
                     Reaches the exam centre by: <b>{fmtDateTime(b.bus.arrivalTime)}</b>
                   </p>
