@@ -291,6 +291,82 @@ describe.skipIf(!dbReady)('booking rules', () => {
     expect(second.body.message).toMatch(/already paid/i);
   });
 
+  /*
+    Booking used to be unbounded, which quietly assumed an infinite fleet:
+    ten thousand students for one centre would route perfectly into two
+    hundred and fifty buses nobody owns, and the failure would surface on exam
+    morning. Selling out is a legitimate state for a bus service.
+  */
+  it('refuses a booking once the centre has sold every seat it can run', async () => {
+    const saved = process.env.MAX_BUSES_PER_CENTRE;
+    try {
+      process.env.MAX_BUSES_PER_CENTRE = '1'; // one bus, 40 seats
+      const { exam, session, center } = await setup();
+
+      // 39 seats already held by other students.
+      for (let i = 0; i < 13; i++) {
+        await makePaidBooking({
+          user: await makeUser(),
+          exam,
+          session,
+          center,
+          coordinates: SIKAR,
+          companions: 2, // 3 seats each
+        });
+      }
+
+      // One more student alone still fits: 39 + 1 = 40.
+      const fits = await asUser(
+        request(app).post('/api/bookings').send(bookingBody(exam, session, center)),
+        await makeUser()
+      );
+      expect(fits.status).toBe(201);
+
+      // The next one does not.
+      const full = await asUser(
+        request(app).post('/api/bookings').send(bookingBody(exam, session, center)),
+        await makeUser()
+      );
+      expect(full.status).toBe(409);
+      expect(full.body.message).toMatch(/full/i);
+    } finally {
+      if (saved === undefined) delete process.env.MAX_BUSES_PER_CENTRE;
+      else process.env.MAX_BUSES_PER_CENTRE = saved;
+    }
+  });
+
+  it('counts companion seats against the limit, not just bookings', async () => {
+    const saved = process.env.MAX_BUSES_PER_CENTRE;
+    try {
+      process.env.MAX_BUSES_PER_CENTRE = '1';
+      const { exam, session, center } = await setup();
+
+      for (let i = 0; i < 13; i++) {
+        await makePaidBooking({
+          user: await makeUser(),
+          exam,
+          session,
+          center,
+          coordinates: SIKAR,
+          companions: 2,
+        });
+      }
+
+      // 39 seats gone; a student bringing two parents needs 3 and cannot fit,
+      // even though there is one seat left and only 13 bookings on record.
+      const res = await asUser(
+        request(app)
+          .post('/api/bookings')
+          .send(bookingBody(exam, session, center, { companions: 2 })),
+        await makeUser()
+      );
+      expect(res.status).toBe(409);
+    } finally {
+      if (saved === undefined) delete process.env.MAX_BUSES_PER_CENTRE;
+      else process.env.MAX_BUSES_PER_CENTRE = saved;
+    }
+  });
+
   it('rejects coordinates outside India', async () => {
     const { exam, session, center, user } = await setup();
     const res = await asUser(

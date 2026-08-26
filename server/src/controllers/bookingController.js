@@ -63,6 +63,46 @@ function assertBookingOpen(exam, session) {
     throw ApiError.badRequest('That exam session has already taken place');
 }
 
+/**
+ * Refuses a booking once a centre has sold more seats than there are buses.
+ *
+ * Booking used to be unbounded, which quietly assumed an infinite fleet: ten
+ * thousand students for one centre would route perfectly into two hundred and
+ * fifty buses that nobody owns. The failure would surface on exam morning,
+ * which is the worst possible time to discover it.
+ *
+ * The limit is per centre per sitting, because that is the unit a fleet is
+ * actually allocated to — buses do not move between cities on the day. The
+ * check counts seats rather than bookings, since a student with two parents
+ * occupies three of them.
+ *
+ * Selling out is a legitimate state for a bus service, and saying so at
+ * booking time is the honest version of it.
+ */
+async function assertCentreHasRoom(session, center, seats, existing) {
+  const fleet = Number(process.env.MAX_BUSES_PER_CENTRE || 0);
+  if (!fleet) return; // unset means unlimited, which is right for a demo
+
+  const capacity = Number(process.env.BUS_CAPACITY || 40);
+  const held = await Booking.find({
+    session: session._id,
+    center: center._id,
+    status: { $in: ['pending', 'paid', 'assigned'] },
+  }).select('seats user');
+
+  // A student re-booking is not new demand, so their current seats do not
+  // count against the total they are trying to fit into.
+  const taken = held
+    .filter((b) => !existing || String(b._id) !== String(existing._id))
+    .reduce((n, b) => n + (b.seats || 1), 0);
+
+  if (taken + seats > fleet * capacity)
+    throw ApiError.conflict(
+      `${center.name} is full for this sitting — every seat we can run has been booked. ` +
+        'Try another centre, or check back in case someone cancels.'
+    );
+}
+
 // POST /api/bookings/quote  { centerId, coordinates:[lng,lat], companions }
 export async function quote(req, res) {
   const center = await Center.findById(assertObjectId(req.body.centerId, 'centerId'));
@@ -107,6 +147,8 @@ export async function createBooking(req, res) {
     throw ApiError.conflict(
       'You have already paid for a seat on this sitting — see it under My Bookings.'
     );
+
+  await assertCentreHasRoom(session, center, seats, existing);
 
   // Fare is always derived server-side from validated coordinates — the client
   // never supplies a price, only a location we have checked.

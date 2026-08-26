@@ -2,6 +2,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
 import { createApp } from './app.js';
+import { startRoutingScheduler } from './services/routingScheduler.js';
 
 const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET'];
 
@@ -45,8 +46,16 @@ async function start() {
     console.log(`🚌 ExamRoute API running on port ${port}`)
   );
 
+  /*
+    Routing runs on a timer, not on a person clicking a button. A sitting is
+    routed once its booking window closes; the admin page keeps its button as
+    an override for re-runs.
+  */
+  const routingTimer = startRoutingScheduler();
+
   const shutdown = (signal) => {
     console.log(`\n${signal} received — shutting down`);
+    if (routingTimer) clearInterval(routingTimer);
     server.close(async () => {
       await mongoose.disconnect();
       process.exit(0);

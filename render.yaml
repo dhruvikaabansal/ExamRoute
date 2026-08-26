@@ -73,6 +73,8 @@ services:
         value: 5
       - key: BUS_CAPACITY
         value: 40
+      - key: ROUTING_SWEEP_MINUTES
+        value: 5
       - key: SAFETY_BUFFER_MIN
         value: 60
       - key: BOARDING_BUFFER_MIN

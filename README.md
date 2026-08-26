@@ -207,6 +207,42 @@ The first version published one number for both, so a ticket read "be at your st
 
 The buffer is a promise to the passenger, not slack in the route — departure, leg durations and arrival are untouched. A test pins exactly that, because the obvious wrong implementation subtracts the buffer from the departure time and makes the whole schedule drift ten minutes earlier on every re-run.
 
+### When it runs, and why nobody presses a button
+
+Routing fires on a **time**, not on a person: a sweeper checks for sittings
+whose booking window has closed and routes them. The admin button remains as an
+override for re-runs.
+
+**Why a batch at all, rather than assigning a bus when someone books?** Because
+you cannot pool students who have not booked yet. Assign at booking time and bus
+1 becomes "the first forty people who clicked" — a chronological group, not a
+geographic one, and the corridors that make the routes short stop existing. The
+batch is forced by the problem; only its trigger was ever a choice.
+
+**What happens to someone who pays after the buses are formed?** They join a bus
+that already stops where they are and has the seats — no stop added, no leg
+changed, no published time moved. Re-clustering the whole sitting would produce
+slightly better routes and is the wrong trade: once a student has been told "be
+at Sikar bus stand at 04:40", that is a promise, and forty people may have
+arranged how they are getting there. Anyone who cannot be placed that cheaply is
+left unassigned and reported, because the alternatives — run another bus, or add
+a stop and delay everyone aboard — are an operator's decision, not a scheduler's.
+
+**Two runs cannot overlap.** Routing deletes a sitting's buses and rebuilds
+them, so an interleaved delete and create could leave bookings pointing at a bus
+that no longer exists. The sitting is claimed with one conditional
+`findOneAndUpdate`, which MongoDB applies atomically, so of two racing callers
+exactly one proceeds and the other gets a 409. The lock carries a timestamp and
+expires after five minutes, because a process killed mid-run would otherwise
+leave that exam permanently unroutable.
+
+**Known constraint:** the sweeper runs inside the API process, so on a free tier
+that sleeps when idle, it sleeps too. It also runs at boot and any request wakes
+the process, so in practice a sitting is routed the first time anyone visits
+after its deadline rather than at the exact minute. A production deployment
+would move this to a worker; doing it here would mean running a second service
+for one function.
+
 ### Known limitation: passenger ride time is not in the objective
 
 Clustering scores candidate solutions on **bus count first, kilometres second**. That is the right economic objective — no amount of shaved distance pays for an extra driver and vehicle — but it contains no term for how long any individual passenger sits on the bus.

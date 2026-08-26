@@ -78,14 +78,73 @@ export function buildSchedule(orderedStops, legsMin, departureTime, boardingBuff
 }
 
 /**
+ * How long a routing run may hold its lock before another run may take it.
+ *
+ * A process can be killed mid-run — a deploy, an out-of-memory kill, a free
+ * tier going to sleep. Without an expiry the sitting stays locked forever and
+ * no amount of retrying frees it, which turns a transient crash into a
+ * permanent outage for that exam.
+ */
+const LOCK_STALE_AFTER_MS = 5 * 60 * 1000;
+
+/**
+ * Claims the sitting, or returns null if someone else already holds it.
+ *
+ * One conditional update, which MongoDB applies atomically to a single
+ * document — so of two callers racing, exactly one matches the filter and the
+ * other gets null. A read-then-write would let both pass.
+ */
+async function acquireRoutingLock(sessionId) {
+  const staleBefore = new Date(Date.now() - LOCK_STALE_AFTER_MS);
+  return ExamSession.findOneAndUpdate(
+    {
+      _id: sessionId,
+      $or: [
+        { routingStatus: { $ne: 'running' } },
+        { routingStartedAt: { $lt: staleBefore } }, // previous holder died
+      ],
+    },
+    { $set: { routingStatus: 'running', routingStartedAt: new Date() } },
+    { new: true }
+  );
+}
+
+async function releaseRoutingLock(sessionId) {
+  await ExamSession.updateOne(
+    { _id: sessionId },
+    { $set: { routingStatus: 'idle', lastRoutedAt: new Date() }, $unset: { routingStartedAt: '' } }
+  );
+}
+
+/**
  * Runs routing for ONE session. Idempotent: re-running fully rebuilds the
  * buses for that session and resets any previously assigned bookings first,
  * so a second click on the admin page cannot leave bookings pointing at a
  * bus that no longer exists.
+ *
+ * Idempotent is not the same as concurrency-safe, which is what the lock is
+ * for: re-running *after* a previous run is fine, re-running *during* one is
+ * a delete interleaved with a create.
  */
 export async function runRoutingForSession(sessionId) {
-  const session = await ExamSession.findById(sessionId);
-  if (!session) throw ApiError.notFound('Session not found');
+  const session = await acquireRoutingLock(sessionId);
+  if (!session) {
+    const exists = await ExamSession.exists({ _id: sessionId });
+    if (!exists) throw ApiError.notFound('Session not found');
+    throw ApiError.conflict('Routing is already running for this sitting');
+  }
+
+  try {
+    return await route(session);
+  } finally {
+    // Released even if routing threw, or the sitting stays locked for five
+    // minutes over a validation error.
+    await releaseRoutingLock(sessionId);
+  }
+}
+
+async function route(session) {
+  const sessionId = session._id;
 
   const capacity = Number(process.env.BUS_CAPACITY || 40);
   const bufferMin = Number(process.env.SAFETY_BUFFER_MIN || 60);
