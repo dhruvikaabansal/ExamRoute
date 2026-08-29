@@ -83,59 +83,59 @@ flow anyone has seen; the bus split is the part that shows engineering.
 
 ## 4. The LinkedIn post
 
-Short enough to read without expanding. A recruiter who lands on the profile
-gets the problem, the stack and a working link inside fifteen seconds.
+Shows the product. Earlier drafts led with a story and compressed the whole
+build into "drop a pin and book a seat" — which could describe anything, and
+gave a reader no reason to believe there was much behind it.
 
-No markdown — LinkedIn renders none of it. No state named: that is seed data,
-and naming one makes a national problem sound like a local pilot.
+Arrows scan faster than paragraphs, so this reads shorter than it counts. No
+markdown: LinkedIn renders none. No state named — that is seed data.
 
 ```
-The exam starts at 9 AM. The gate shuts at 8:30 and never opens again.
+The exam starts at 9 AM. The gate shuts at 8:30 and never opens again. If you live 300 km away and no bus arrives in time, being prepared stops mattering.
 
-If you live 300 km away and no bus arrives in time, how prepared you are stops mattering.
+So I built ExamRoute — students heading to the same exam centre get pooled onto one shared bus.
 
-So I built ExamRoute.
+What it actually does:
 
-Drop a pin on your home and book a seat. When bookings close, a routing engine pools everyone heading to the same centre into buses, orders the pickup stops, and computes the departure time backwards from that gate.
+→ Pick your exam, date and shift, and enter the roll number off your admit card
+→ Search your address or tap the map — it matches your nearest pickup stop inside a 5 km catchment, and says so plainly if you fall outside every zone
+→ See the fare broken down before you pay: distance, base fare, subsidy, total
+→ The subsidy rises with distance, because the students travelling furthest usually have the least to spend
+→ Pay through Razorpay, signature verified server-side. Cancel and the refund is tiered by how close the exam is — and shown to you before you confirm, not after
 
-The interesting part:
+Then bookings close, and nobody presses anything:
 
-I grouped students with k-means. It makes round clusters. But a good bus route isn't round — it's a corridor strung along one highway. That is exactly the shape k-means avoids.
+→ A routing engine groups every paid student for that centre into 40-seat buses
+→ Orders each bus's pickup stops
+→ Computes the departure time backwards from the minute that gate shuts
+→ Your ticket reads: be at your stop 06:50 · bus arrives 07:00 · reaches the centre 09:00
+
+On the morning, staff open a boarding list — every passenger grouped by stop, in the order the bus drives them, ticked off as they arrive, so at departure they know exactly who is missing. The driver opens a link that needs no login and shares GPS. You watch the bus move on a map.
+
+The part I'm proudest of:
+
+I grouped students with k-means. It makes round clusters. But a bus route isn't round — it's a corridor strung along one highway, which is exactly the shape k-means avoids.
 
 The code wasn't buggy. It was optimising the wrong thing.
 
-So the engine builds a second grouping by sweeping angles around the centre, scores both on what they would cost to drive, and uses the cheaper one.
+So the engine builds a second grouping by sweeping angles around the centre, scores both on what they would cost to drive, and uses the cheaper one. 10–18% shorter routes.
 
-10–18% shorter routes.
+React · Node · Express · MongoDB · Razorpay · Leaflet · 150+ tests against a real database in CI
 
-React · Node · MongoDB · Razorpay · 150+ tests against a real database in CI
+Live demo and code in the comments — guest login, no sign-up.
 
-Live demo and code in the comments — there's a guest login, no sign-up.
-
-#WebDevelopment #Algorithms #MERN #SoftwareEngineering
+#WebDevelopment #MERN #Algorithms #SoftwareEngineering
 ```
 
-**Optional line, if you are actively looking.** Put it directly above the
-hashtags, and only if the profile headline says the same thing — a mismatch
-reads as noise:
+**Why arrows**
 
-```
-Final year, looking for SDE roles.
-```
+Two scannable blocks — what the student does, what the system does — let a
+recruiter get the surface area in about eight seconds without reading a
+sentence. The specifics are the point: "5 km catchment", "40-seat buses",
+"06:50 · 07:00 · 09:00", "refund shown before you confirm". Those are checkable
+and concrete. "Seamless booking experience" is not.
 
-Better than any hashtag for this: turn on the **Open to Work** setting on the
-profile. Recruiters filter on it; they do not filter on `#OpenToWork`.
-
-**Why this length**
-
-Roughly a thousand characters, which is about what fits before LinkedIn's "see
-more" on desktop. Everything cut — QR boarding, the admit-card check, live
-tracking, geofenced catchment zones, the inverted subsidy — is real work, and
-none of it survives the question "does this line make someone click the demo?"
-
-A recruiter skims three things: what problem, what stack, does it run. Those are
-lines one, second-last and last. The k-means passage is for the engineer they
-forward it to.
+The k-means passage stays last, for the engineer they forward it to.
 
 ### Posting mechanics — these decide reach more than the words do
 
