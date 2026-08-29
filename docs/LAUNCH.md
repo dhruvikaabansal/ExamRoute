@@ -83,77 +83,57 @@ flow anyone has seen; the bus split is the part that shows engineering.
 
 ## 4. The LinkedIn post
 
-Opens on a person, not a project. Walks the product the way a student would
-actually meet it, and saves the algorithm for last — by then the reader cares
-what it is for.
+Half the length of the first draft. Almost nobody reads to the end of a long
+post, so everything that was merely interesting is gone and only the parts that
+earn their line are left.
 
-No markdown: LinkedIn renders none of it. Structure comes from short lines and
-white space.
-
-No mention of any one state. That is seed data for the MVP, and naming a state
+No markdown — LinkedIn renders none of it. Short lines and white space do the
+work. No mention of any one state either: that is seed data, and naming a state
 makes a national problem sound like a local pilot.
 
 ```
-A student in a small town is assigned an exam centre 300 km away.
+A student is assigned an exam centre 300 km away.
 
 The paper starts at 9 AM. The gate shuts at 8:30 and does not open again.
 
 No bus gets her there in time. So she travels overnight, alone, and hopes.
 
-Thousands of students do this for every major exam. Some of them don't make it — not because they weren't prepared, but because of a bus.
+I built ExamRoute so that getting there is never the reason someone misses an exam.
 
-I spent this year building ExamRoute so that getting there is never the reason.
-
-Here is what it does.
-
-You book a seat, not a bus.
-
-Pick the exam, the date, the shift. Drop a pin where you live. Add seats if a parent is coming with you. You get a fare and your nearest pickup point, matched by a geospatial query against every stop whose catchment zone covers your home.
-
-The fare falls as the distance rises.
-
-That sounds backwards. It is the entire point. The students travelling furthest usually have the least to spend, so the subsidy grows with the journey.
-
-Then the buses form themselves.
-
-When bookings close, a routing engine takes everyone travelling to the same centre, groups them into buses that fit the seats, works out the order of pickup stops, and computes the departure time backwards from the moment the exam gate shuts.
+You drop a pin on your home and book a seat. When bookings close, a routing engine pools everyone heading to the same centre into buses, orders the pickup stops, and works the departure time backwards from the moment that gate shuts.
 
 Nobody presses a button. It runs on the deadline.
 
-On the morning, you get a QR ticket. Staff scan it, then check your admit card against the name on screen — the app verifies the ticket, a person verifies the person. No software can confirm someone is a genuine exam candidate, and pretending otherwise would be theatre.
+The fare falls as the distance rises — the students travelling furthest usually have the least to spend.
 
-Then you watch the bus move on a map until it reaches you.
+The hardest part:
 
-The hardest thing I learned building it:
+I grouped students with k-means. It produced neat round clusters.
 
-I grouped students with k-means. Textbook choice. It produced neat round clusters.
-
-But a good bus route isn't round. It's a corridor — students strung along one highway, from a far town into the city. In k-means terms that is a high-variance cluster, which is exactly the shape it exists to avoid.
+But a good bus route isn't round. It's a corridor — students strung along one highway from a far town into the city. In k-means terms, exactly the shape it exists to avoid.
 
 The code wasn't buggy. It was optimising the wrong thing.
 
-So the engine now builds a second grouping by sweeping angles around the exam centre, scores both on what they would actually cost to drive, and uses the cheaper one.
+So the engine builds a second grouping by sweeping angles around the exam centre, scores both on what they would actually cost to drive, and uses the cheaper one.
 
-10–18% shorter routes. And it can never lose to k-means, because k-means is one of the candidates.
+10–18% shorter routes — and it can never lose to k-means, because k-means is one of the candidates.
 
-React · Node · Express · MongoDB · Razorpay · 150+ tests against a real database in CI
+React · Node · MongoDB · Razorpay · 150+ tests against a real database in CI
 
-Live demo in the comments — there's a guest login, so you can try it without signing up.
+Live demo in the comments. Guest login, no sign-up.
 ```
 
-**Why it is shaped like this**
+**What was cut, and why**
 
-- The first three lines are all anyone sees before "see more". A student and a
-  closing gate is a situation; "excited to share my project" is not.
-- The middle walks the product in the order a user meets it, so a non-technical
-  reader stays in and an engineer sees the surface area — geospatial matching,
-  scheduling, payments, QR boarding, live tracking — without a feature list.
-- Two lines do the emotional work: the subsidy rising with distance, and the
-  human admit-card check. Both are decisions with a reason, which is what makes
-  them memorable rather than impressive.
-- The algorithm lands last, when the reader already cares what it is for.
-- No hashtag wall, no emoji, no "thrilled to announce" — all three read as
-  performance rather than work.
+The QR boarding, the human admit-card check, the live tracking, the geofenced
+catchment zones — all good, none of them load-bearing. A post that lists
+everything reads as a changelog, and the reader who would have been impressed by
+the fifth feature already left at the third.
+
+What survives is the shape of a story: a person in trouble, the thing that helps
+them, one decision that shows judgement (the inverted subsidy), and one mistake
+that shows honesty. Everything else belongs in the demo video and the repo,
+which is where an interested reader goes next.
 
 ### Posting mechanics — these decide reach more than the words do
 
