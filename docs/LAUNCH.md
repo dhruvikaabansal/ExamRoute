@@ -83,113 +83,83 @@ flow anyone has seen; the bus split is the part that shows engineering.
 
 ## 4. The LinkedIn post
 
-Two angles. Pick one — posting both is worse than posting either.
+One post. The hook is a mistake, not an announcement — nobody stops scrolling
+for "excited to share my project".
 
-**A** leads with the engineering mistake. Best reach with engineers, and the
-strongest signal for hiring, because it shows you can find a bug in something
-that was already working.
-
-**B** leads with the problem. Broader reach, more shares outside tech.
-
----
-
-### Option A — "it was working, and it was wrong" (recommended)
+No mention of Rajasthan: that is seed data for the MVP, not the scope of the
+idea, and naming one state makes a national problem sound like a local one.
 
 ```
-My routing engine was working perfectly. It was also completely wrong.
+My routing engine was working perfectly. It was also solving the wrong problem.
 
-I built ExamRoute to pool students travelling to the same exam centre onto shared buses. Group students by where they live, order the stops, work out when the bus leaves.
+I built ExamRoute — students travelling to the same exam centre get pooled onto one shared bus, with pickup stops and a departure time worked backwards from when the exam hall closes.
 
-I used k-means for the clustering. Textbook choice.
+To group students by location, I used k-means. Textbook choice.
 
 Then I looked at an actual route on a map.
 
-k-means minimises distance to a centre point, so it makes round clusters. Neat little blobs.
+k-means minimises distance to a centre point. It makes round clusters — neat little blobs.
 
-But a good bus route isn't a blob. It's a corridor — students strung out along one highway, all the way from a far town into the city.
+A good bus route is not a blob. It is a corridor: students strung out along one highway, from a far town into the city.
 
-In k-means terms, that's a high-variance cluster. Exactly the shape it is built to avoid.
+In k-means terms, that is a high-variance cluster. Exactly the shape it is built to avoid.
 
-The algorithm wasn't buggy. It was optimising the wrong thing.
+The code wasn't buggy. It was optimising the wrong thing.
 
-The fix was a sweep: sort every student by the angle they sit at around the exam centre, walk the circle, and start a new bus whenever the next student won't fit. Each bus ends up serving a wedge radiating outward, which is what a feeder route actually looks like.
+The fix: sort every student by the angle they sit at around the exam centre, walk the circle, and start a new bus whenever the next student won't fit. Each bus serves a wedge pointing outward — which is what a feeder route actually is.
 
-The part I'm most pleased with is that I didn't pick one.
+The part I'm happiest with is that I didn't pick one.
 
-Neither wins everywhere. So the engine builds both, scores them on what they would actually cost to drive — bus count first, kilometres second, because no amount of shaved distance pays for an extra driver and vehicle — and uses the cheaper one.
+Neither wins everywhere. So the engine builds both, scores them on what they would actually cost to drive — bus count first, kilometres second, because no distance saving pays for an extra driver and vehicle — and uses the cheaper.
 
-10–18% shorter routes across cohorts from 60 to 400 students. And it can never be worse than k-means, because k-means is one of the candidates.
+10–18% shorter routes. And it can never be worse than k-means, because k-means is one of the candidates.
 
-Three other things I had shipped and had to fix:
+The bug I'm least proud of was on the ticket:
 
-Every fare came back at exactly 50% subsidy. The rate was meant to rise with distance, but the cap arrived at 250 km and almost nobody in Rajasthan travels less than that. A graduated policy that quoted a flat discount to everyone.
+"Be at your stop by 07:10"
+"Bus departs 07:10"
 
-Tickets read "be at your stop by 07:10" directly above "bus departs 07:10". Zero buffer. A schedule that only holds if nobody is ever thirty seconds late — and the cost of waiting is paid by the forty people who were on time.
+Zero buffer. A schedule that only holds if nobody is ever thirty seconds late — and when someone is, the cost is paid by the forty people who weren't.
 
-Sign-up emailed a verification code that could never arrive, because free hosting tiers block outbound SMTP. I deleted the whole path rather than ship a form that traps people.
+Neither of these crashed anything. Everything looked fine. They only showed up when I checked output I had assumed was correct.
 
-None of these were crashes. Everything looked fine. They only showed up when I checked output I had assumed was correct.
+React · Node · Express · MongoDB · Razorpay · 150+ tests against a real database in CI
 
-Built with React, Node, Express and MongoDB. Razorpay in test mode, 150+ tests running against a real database in CI.
-
-Live demo and code in the comments — there's a guest login, so you can try it without signing in.
+Live demo in the comments — there's a guest login, so you can try it without signing up.
 ```
 
----
+**Why it is shaped like this**
 
-### Option B — "the 4am bus" (broader reach)
+- The first three lines are all most people see before "see more". A
+  contradiction in line one earns the click; a project announcement does not.
+- The technical middle is the reason an engineer shares it. The blob-versus-
+  corridor image is the whole insight and it needs no diagram.
+- The bug at the end is the reason a hiring manager remembers it. Anyone can
+  list features. Volunteering a mistake you found in your own working code is
+  the rarer signal, and "nothing crashed, everything looked fine" is the line
+  that lands.
+- No hashtag wall, no emoji, no "thrilled to announce". All three read as
+  performance rather than work.
 
-```
-A student in Jhunjhunu sitting an exam in Jaipur has to be inside the hall by 9 AM.
+### Posting mechanics — these decide reach more than the words do
 
-That means leaving around 4 AM. There is no bus at 4 AM.
+**Links in the first comment, never in the post.** LinkedIn throttles anything
+that sends people off-platform. Post, then immediately comment with the live URL
+and the repo. This is the single biggest lever.
 
-So families hire a car they can't really afford, or the student travels the night before and sleeps at the bus stand.
-
-Rajasthan's state transport already recognises this — RSRTC gives competitive exam candidates free travel, and from this year they have to register 36 hours in advance. The problem is real enough to have a government portal.
-
-What nobody does is the hard part: turning who booked into which buses run.
-
-That's what I built.
-
-ExamRoute takes everyone travelling to the same exam centre for the same shift, groups them into buses that fit the seats, orders each bus's stops, and works backwards from the exam's reporting time to decide when it leaves. Fares fall as distance rises, because the students with the longest journeys are usually the ones least able to pay.
-
-The interesting problem turned out to be the clustering. k-means makes round clusters, but a good bus route is a corridor along one highway — the exact shape k-means avoids. So the engine also builds a sweep, scores both on what they'd cost to drive, and picks the cheaper. 10–18% shorter.
-
-The part I can't automate is identity. No public API confirms someone is a genuine exam candidate — only NTA knows, and DigiLocker needs partner onboarding a student project can't get. So the app verifies the ticket, and a person checks the admit card at the bus door. An honest boundary beats security theatre.
-
-React, Node, Express, MongoDB. Razorpay in test mode, 150+ tests in CI.
-
-Live demo and code in the comments — guest login, no sign-up needed.
-```
-
----
-
-### Posting mechanics — these matter more than the words
-
-**Put the links in the first comment, not the post.** LinkedIn suppresses reach
-on posts with external links. Post it, then immediately comment with the live
-URL and the repo.
-
-**Attach the demo video directly.** Native video outranks a link to one, and it
-is the thing that makes someone stop scrolling. If the video isn't ready, a
-single screenshot of the admin routing screen with five buses works.
-
-**First three lines are all most people see.** Both drafts front-load a hook
-before the "see more" cut. Don't add a preamble above it.
+**Upload the demo video natively.** A link to a video is worth a fraction of the
+video itself. If it is not ready, one screenshot of the admin screen with five
+buses and their routes drawn works — that image is the whole pitch.
 
 **Reply to every comment in the first two hours.** Early engagement is most of
-what decides how far it travels.
+what decides how far it travels. Set aside the time before you post.
 
-**Tags:** three or four, no more.
-`#webdevelopment #mern #algorithms #opensource`
+**Three or four tags, no more:** `#webdevelopment #algorithms #mern #opensource`
 
-**Timing:** Tuesday to Thursday, 9–11 AM IST is the usual advice for Indian
-professional audiences. Avoid Friday evening and weekends.
+**Tuesday to Thursday, 9–11 AM IST.** Avoid Friday evening and weekends.
 
-**Tag people, not companies.** If a professor, a senior or a friend genuinely
-helped, name them. Tagging companies you have no relationship with reads as
-spam and gets muted.
+**Tag people who actually helped, never companies you have no relationship
+with.** The second reads as spam and gets muted.
 
 ## 5. Before an interview
 
