@@ -83,45 +83,58 @@ flow anyone has seen; the bus split is the part that shows engineering.
 
 ## 4. The LinkedIn post
 
-One post. The hook is a mistake, not an announcement — nobody stops scrolling
-for "excited to share my project".
+Opens on a person, not a project. Walks the product the way a student would
+actually meet it, and saves the algorithm for last — by then the reader cares
+what it is for.
 
-No mention of Rajasthan: that is seed data for the MVP, not the scope of the
-idea, and naming one state makes a national problem sound like a local one.
+No markdown: LinkedIn renders none of it. Structure comes from short lines and
+white space.
+
+No mention of any one state. That is seed data for the MVP, and naming a state
+makes a national problem sound like a local pilot.
 
 ```
-My routing engine was working perfectly. It was also solving the wrong problem.
+A student in a small town is assigned an exam centre 300 km away.
 
-I built ExamRoute — students travelling to the same exam centre get pooled onto one shared bus, with pickup stops and a departure time worked backwards from when the exam hall closes.
+The paper starts at 9 AM. The gate shuts at 8:30 and does not open again.
 
-To group students by location, I used k-means. Textbook choice.
+No bus gets her there in time. So she travels overnight, alone, and hopes.
 
-Then I looked at an actual route on a map.
+Thousands of students do this for every major exam. Some of them don't make it — not because they weren't prepared, but because of a bus.
 
-k-means minimises distance to a centre point. It makes round clusters — neat little blobs.
+I spent this year building ExamRoute so that getting there is never the reason.
 
-A good bus route is not a blob. It is a corridor: students strung out along one highway, from a far town into the city.
+Here is what it does.
 
-In k-means terms, that is a high-variance cluster. Exactly the shape it is built to avoid.
+You book a seat, not a bus.
+
+Pick the exam, the date, the shift. Drop a pin where you live. Add seats if a parent is coming with you. You get a fare and your nearest pickup point, matched by a geospatial query against every stop whose catchment zone covers your home.
+
+The fare falls as the distance rises.
+
+That sounds backwards. It is the entire point. The students travelling furthest usually have the least to spend, so the subsidy grows with the journey.
+
+Then the buses form themselves.
+
+When bookings close, a routing engine takes everyone travelling to the same centre, groups them into buses that fit the seats, works out the order of pickup stops, and computes the departure time backwards from the moment the exam gate shuts.
+
+Nobody presses a button. It runs on the deadline.
+
+On the morning, you get a QR ticket. Staff scan it, then check your admit card against the name on screen — the app verifies the ticket, a person verifies the person. No software can confirm someone is a genuine exam candidate, and pretending otherwise would be theatre.
+
+Then you watch the bus move on a map until it reaches you.
+
+The hardest thing I learned building it:
+
+I grouped students with k-means. Textbook choice. It produced neat round clusters.
+
+But a good bus route isn't round. It's a corridor — students strung along one highway, from a far town into the city. In k-means terms that is a high-variance cluster, which is exactly the shape it exists to avoid.
 
 The code wasn't buggy. It was optimising the wrong thing.
 
-The fix: sort every student by the angle they sit at around the exam centre, walk the circle, and start a new bus whenever the next student won't fit. Each bus serves a wedge pointing outward — which is what a feeder route actually is.
+So the engine now builds a second grouping by sweeping angles around the exam centre, scores both on what they would actually cost to drive, and uses the cheaper one.
 
-The part I'm happiest with is that I didn't pick one.
-
-Neither wins everywhere. So the engine builds both, scores them on what they would actually cost to drive — bus count first, kilometres second, because no distance saving pays for an extra driver and vehicle — and uses the cheaper.
-
-10–18% shorter routes. And it can never be worse than k-means, because k-means is one of the candidates.
-
-The bug I'm least proud of was on the ticket:
-
-"Be at your stop by 07:10"
-"Bus departs 07:10"
-
-Zero buffer. A schedule that only holds if nobody is ever thirty seconds late — and when someone is, the cost is paid by the forty people who weren't.
-
-Neither of these crashed anything. Everything looked fine. They only showed up when I checked output I had assumed was correct.
+10–18% shorter routes. And it can never lose to k-means, because k-means is one of the candidates.
 
 React · Node · Express · MongoDB · Razorpay · 150+ tests against a real database in CI
 
@@ -130,29 +143,30 @@ Live demo in the comments — there's a guest login, so you can try it without s
 
 **Why it is shaped like this**
 
-- The first three lines are all most people see before "see more". A
-  contradiction in line one earns the click; a project announcement does not.
-- The technical middle is the reason an engineer shares it. The blob-versus-
-  corridor image is the whole insight and it needs no diagram.
-- The bug at the end is the reason a hiring manager remembers it. Anyone can
-  list features. Volunteering a mistake you found in your own working code is
-  the rarer signal, and "nothing crashed, everything looked fine" is the line
-  that lands.
-- No hashtag wall, no emoji, no "thrilled to announce". All three read as
+- The first three lines are all anyone sees before "see more". A student and a
+  closing gate is a situation; "excited to share my project" is not.
+- The middle walks the product in the order a user meets it, so a non-technical
+  reader stays in and an engineer sees the surface area — geospatial matching,
+  scheduling, payments, QR boarding, live tracking — without a feature list.
+- Two lines do the emotional work: the subsidy rising with distance, and the
+  human admit-card check. Both are decisions with a reason, which is what makes
+  them memorable rather than impressive.
+- The algorithm lands last, when the reader already cares what it is for.
+- No hashtag wall, no emoji, no "thrilled to announce" — all three read as
   performance rather than work.
 
 ### Posting mechanics — these decide reach more than the words do
 
 **Links in the first comment, never in the post.** LinkedIn throttles anything
 that sends people off-platform. Post, then immediately comment with the live URL
-and the repo. This is the single biggest lever.
+and the repo. Single biggest lever.
 
 **Upload the demo video natively.** A link to a video is worth a fraction of the
 video itself. If it is not ready, one screenshot of the admin screen with five
 buses and their routes drawn works — that image is the whole pitch.
 
-**Reply to every comment in the first two hours.** Early engagement is most of
-what decides how far it travels. Set aside the time before you post.
+**Reply to every comment in the first two hours.** Early engagement decides how
+far it travels. Block out the time before you post.
 
 **Three or four tags, no more:** `#webdevelopment #algorithms #mern #opensource`
 
