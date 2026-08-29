@@ -83,57 +83,59 @@ flow anyone has seen; the bus split is the part that shows engineering.
 
 ## 4. The LinkedIn post
 
-Half the length of the first draft. Almost nobody reads to the end of a long
-post, so everything that was merely interesting is gone and only the parts that
-earn their line are left.
+Short enough to read without expanding. A recruiter who lands on the profile
+gets the problem, the stack and a working link inside fifteen seconds.
 
-No markdown — LinkedIn renders none of it. Short lines and white space do the
-work. No mention of any one state either: that is seed data, and naming a state
-makes a national problem sound like a local pilot.
+No markdown — LinkedIn renders none of it. No state named: that is seed data,
+and naming one makes a national problem sound like a local pilot.
 
 ```
-A student is assigned an exam centre 300 km away.
+The exam starts at 9 AM. The gate shuts at 8:30 and never opens again.
 
-The paper starts at 9 AM. The gate shuts at 8:30 and does not open again.
+If you live 300 km away and no bus arrives in time, how prepared you are stops mattering.
 
-No bus gets her there in time. So she travels overnight, alone, and hopes.
+So I built ExamRoute.
 
-I built ExamRoute so that getting there is never the reason someone misses an exam.
+Drop a pin on your home and book a seat. When bookings close, a routing engine pools everyone heading to the same centre into buses, orders the pickup stops, and computes the departure time backwards from that gate.
 
-You drop a pin on your home and book a seat. When bookings close, a routing engine pools everyone heading to the same centre into buses, orders the pickup stops, and works the departure time backwards from the moment that gate shuts.
+The interesting part:
 
-Nobody presses a button. It runs on the deadline.
-
-The fare falls as the distance rises — the students travelling furthest usually have the least to spend.
-
-The hardest part:
-
-I grouped students with k-means. It produced neat round clusters.
-
-But a good bus route isn't round. It's a corridor — students strung along one highway from a far town into the city. In k-means terms, exactly the shape it exists to avoid.
+I grouped students with k-means. It makes round clusters. But a good bus route isn't round — it's a corridor strung along one highway. That is exactly the shape k-means avoids.
 
 The code wasn't buggy. It was optimising the wrong thing.
 
-So the engine builds a second grouping by sweeping angles around the exam centre, scores both on what they would actually cost to drive, and uses the cheaper one.
+So the engine builds a second grouping by sweeping angles around the centre, scores both on what they would cost to drive, and uses the cheaper one.
 
-10–18% shorter routes — and it can never lose to k-means, because k-means is one of the candidates.
+10–18% shorter routes.
 
 React · Node · MongoDB · Razorpay · 150+ tests against a real database in CI
 
-Live demo in the comments. Guest login, no sign-up.
+Live demo and code in the comments — there's a guest login, no sign-up.
+
+#WebDevelopment #Algorithms #MERN #SoftwareEngineering
 ```
 
-**What was cut, and why**
+**Optional line, if you are actively looking.** Put it directly above the
+hashtags, and only if the profile headline says the same thing — a mismatch
+reads as noise:
 
-The QR boarding, the human admit-card check, the live tracking, the geofenced
-catchment zones — all good, none of them load-bearing. A post that lists
-everything reads as a changelog, and the reader who would have been impressed by
-the fifth feature already left at the third.
+```
+Final year, looking for SDE roles.
+```
 
-What survives is the shape of a story: a person in trouble, the thing that helps
-them, one decision that shows judgement (the inverted subsidy), and one mistake
-that shows honesty. Everything else belongs in the demo video and the repo,
-which is where an interested reader goes next.
+Better than any hashtag for this: turn on the **Open to Work** setting on the
+profile. Recruiters filter on it; they do not filter on `#OpenToWork`.
+
+**Why this length**
+
+Roughly a thousand characters, which is about what fits before LinkedIn's "see
+more" on desktop. Everything cut — QR boarding, the admit-card check, live
+tracking, geofenced catchment zones, the inverted subsidy — is real work, and
+none of it survives the question "does this line make someone click the demo?"
+
+A recruiter skims three things: what problem, what stack, does it run. Those are
+lines one, second-last and last. The k-means passage is for the engineer they
+forward it to.
 
 ### Posting mechanics — these decide reach more than the words do
 
