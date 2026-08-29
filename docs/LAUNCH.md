@@ -83,99 +83,113 @@ flow anyone has seen; the bus split is the part that shows engineering.
 
 ## 4. The LinkedIn post
 
-Post the video natively (uploaded to LinkedIn, not a YouTube link — native
-video gets shown to far more people). Put the repo link in the **first
-comment** if you want reach, or in the post if you care more about clicks
-than impressions.
+Two angles. Pick one — posting both is worse than posting either.
 
-### Draft
+**A** leads with the engineering mistake. Best reach with engineers, and the
+strongest signal for hiring, because it shows you can find a bug in something
+that was already working.
 
-> Students sitting JEE, NEET or CUET often have to reach an exam centre in
-> another city by 7 AM. Public transport doesn't run to exam timings, so
-> families end up hiring a taxi they can't really afford, or leaving at 3 AM
-> and hoping.
->
-> I built ExamRoute to pool them onto shared buses.
->
-> You book a seat for a specific date and shift. The system finds your nearest
-> pickup stop. Once bookings close, a routing engine groups students into
-> buses, orders the pickup stops, and computes the departure time by working
-> *backwards* from the exam's gate-close deadline — so the bus is planned
-> around the exam, not the other way round.
->
-> Fares are subsidised more heavily the further you're travelling. That's the
-> point of the whole thing: the students with the longest journeys are usually
-> the ones least able to pay for them.
->
-> The part I learned the most from wasn't the routing. It was this:
->
-> I sized the buses as k = ceil(total seats / capacity) and ran k-means on
-> home locations. Correct arithmetic, completely insufficient. K-means groups
-> students geographically — it has no concept of capacity. With 60 students
-> and 40-seat buses you get 2 buses, and the split can land 55 and 5. The
-> admin screen would happily print "55/40 seats" and nothing would stop it.
->
-> The fix is a repair pass: any over-capacity cluster gives up its most
-> *peripheral* member — the student farthest from that cluster's centre — to
-> the nearest bus with room. Evicting a central student would tear a hole in
-> the middle of an otherwise tight route.
->
-> Then a second, less obvious problem. Once the capacity was right I could see
-> the routes, and they were still wrong: k-means minimises distance to a
-> centroid, so it likes round blobs — but a good bus route is a *corridor*,
-> students strung along one highway from a far town into the city. That is a
-> high-variance cluster, exactly what k-means avoids. So I added the sweep
-> algorithm, which cuts wedges by angle around the exam centre, and then I
-> didn't pick between them: both get built, both get scored on what they would
-> cost to drive, and the cheaper one wins. 10–18% shorter than k-means alone,
-> and it cannot be worse, because k-means is one of the candidates.
->
-> One thing I decided not to fake: there's no way to digitally verify that
-> someone is a real exam candidate. Only NTA knows, and there's no public API.
-> So instead of a fake "verified ✓" badge, the app verifies the *ticket* via
-> QR, and a person checks the admit card against the name on screen. The
-> app verifies the ticket; a person verifies the person.
->
-> MERN, JWT + Google OAuth, Razorpay with server-side signature verification,
-> MongoDB 2dsphere geo-queries. 144 tests, with the integration layer running
-> against a real MongoDB in CI.
->
-> Code and a full write-up of the decisions in the comments. Feedback welcome —
-> especially from anyone who has actually run bus operations.
-
-### Shorter version, if the above feels long
-
-> Students travelling to JEE/NEET/CUET often have to reach a centre in another
-> city by 7 AM, and public transport doesn't run to exam timings.
->
-> ExamRoute pools them onto shared buses. Book a seat for a date and shift, get
-> matched to your nearest pickup stop, and a routing engine works *backwards*
-> from the exam's gate-close deadline to compute the departure time and every
-> pickup along the way. Fares are subsidised more heavily the further you
-> travel — the longest journeys usually belong to the families least able to
-> afford them.
->
-> The lesson that stuck: k-means grouped students geographically but had no
-> concept of bus capacity, so a "2 buses for 60 students" split could land 55
-> and 5. Fixed with a repair pass that moves the most peripheral student out of
-> any overfull bus — peripheral, because evicting a central one tears a hole in
-> the route.
->
-> MERN · JWT + Google OAuth · Razorpay · MongoDB geospatial · 144 tests. Repo below.
-
-### Notes on posting
-
-- **Don't lead with the tech stack.** Lead with the 7 AM problem. The stack is
-  the last line for a reason — everyone has a MERN project, not everyone has a
-  reason for one.
-- **The bug is the hook.** Recruiters and engineers both stop scrolling for
-  "here's what I got wrong", and almost nobody posts it.
-- **Tag nothing and no one** unless you actually know them.
-- Best times are usually Tuesday–Thursday morning IST.
-- Expect "how do you stop fake bookings?" in the comments — the DigiLocker
-  answer is in `docs/TALKING-POINTS.md`, section 2.
+**B** leads with the problem. Broader reach, more shares outside tech.
 
 ---
+
+### Option A — "it was working, and it was wrong" (recommended)
+
+```
+My routing engine was working perfectly. It was also completely wrong.
+
+I built ExamRoute to pool students travelling to the same exam centre onto shared buses. Group students by where they live, order the stops, work out when the bus leaves.
+
+I used k-means for the clustering. Textbook choice.
+
+Then I looked at an actual route on a map.
+
+k-means minimises distance to a centre point, so it makes round clusters. Neat little blobs.
+
+But a good bus route isn't a blob. It's a corridor — students strung out along one highway, all the way from a far town into the city.
+
+In k-means terms, that's a high-variance cluster. Exactly the shape it is built to avoid.
+
+The algorithm wasn't buggy. It was optimising the wrong thing.
+
+The fix was a sweep: sort every student by the angle they sit at around the exam centre, walk the circle, and start a new bus whenever the next student won't fit. Each bus ends up serving a wedge radiating outward, which is what a feeder route actually looks like.
+
+The part I'm most pleased with is that I didn't pick one.
+
+Neither wins everywhere. So the engine builds both, scores them on what they would actually cost to drive — bus count first, kilometres second, because no amount of shaved distance pays for an extra driver and vehicle — and uses the cheaper one.
+
+10–18% shorter routes across cohorts from 60 to 400 students. And it can never be worse than k-means, because k-means is one of the candidates.
+
+Three other things I had shipped and had to fix:
+
+Every fare came back at exactly 50% subsidy. The rate was meant to rise with distance, but the cap arrived at 250 km and almost nobody in Rajasthan travels less than that. A graduated policy that quoted a flat discount to everyone.
+
+Tickets read "be at your stop by 07:10" directly above "bus departs 07:10". Zero buffer. A schedule that only holds if nobody is ever thirty seconds late — and the cost of waiting is paid by the forty people who were on time.
+
+Sign-up emailed a verification code that could never arrive, because free hosting tiers block outbound SMTP. I deleted the whole path rather than ship a form that traps people.
+
+None of these were crashes. Everything looked fine. They only showed up when I checked output I had assumed was correct.
+
+Built with React, Node, Express and MongoDB. Razorpay in test mode, 150+ tests running against a real database in CI.
+
+Live demo and code in the comments — there's a guest login, so you can try it without signing in.
+```
+
+---
+
+### Option B — "the 4am bus" (broader reach)
+
+```
+A student in Jhunjhunu sitting an exam in Jaipur has to be inside the hall by 9 AM.
+
+That means leaving around 4 AM. There is no bus at 4 AM.
+
+So families hire a car they can't really afford, or the student travels the night before and sleeps at the bus stand.
+
+Rajasthan's state transport already recognises this — RSRTC gives competitive exam candidates free travel, and from this year they have to register 36 hours in advance. The problem is real enough to have a government portal.
+
+What nobody does is the hard part: turning who booked into which buses run.
+
+That's what I built.
+
+ExamRoute takes everyone travelling to the same exam centre for the same shift, groups them into buses that fit the seats, orders each bus's stops, and works backwards from the exam's reporting time to decide when it leaves. Fares fall as distance rises, because the students with the longest journeys are usually the ones least able to pay.
+
+The interesting problem turned out to be the clustering. k-means makes round clusters, but a good bus route is a corridor along one highway — the exact shape k-means avoids. So the engine also builds a sweep, scores both on what they'd cost to drive, and picks the cheaper. 10–18% shorter.
+
+The part I can't automate is identity. No public API confirms someone is a genuine exam candidate — only NTA knows, and DigiLocker needs partner onboarding a student project can't get. So the app verifies the ticket, and a person checks the admit card at the bus door. An honest boundary beats security theatre.
+
+React, Node, Express, MongoDB. Razorpay in test mode, 150+ tests in CI.
+
+Live demo and code in the comments — guest login, no sign-up needed.
+```
+
+---
+
+### Posting mechanics — these matter more than the words
+
+**Put the links in the first comment, not the post.** LinkedIn suppresses reach
+on posts with external links. Post it, then immediately comment with the live
+URL and the repo.
+
+**Attach the demo video directly.** Native video outranks a link to one, and it
+is the thing that makes someone stop scrolling. If the video isn't ready, a
+single screenshot of the admin routing screen with five buses works.
+
+**First three lines are all most people see.** Both drafts front-load a hook
+before the "see more" cut. Don't add a preamble above it.
+
+**Reply to every comment in the first two hours.** Early engagement is most of
+what decides how far it travels.
+
+**Tags:** three or four, no more.
+`#webdevelopment #mern #algorithms #opensource`
+
+**Timing:** Tuesday to Thursday, 9–11 AM IST is the usual advice for Indian
+professional audiences. Avoid Friday evening and weekends.
+
+**Tag people, not companies.** If a professor, a senior or a friend genuinely
+helped, name them. Tagging companies you have no relationship with reads as
+spam and gets muted.
 
 ## 5. Before an interview
 
