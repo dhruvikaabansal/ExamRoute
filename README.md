@@ -26,7 +26,7 @@ Runs end-to-end with only a MongoDB connection string and a JWT secret. Payments
 - [Environment variables](#environment-variables)
 - [Deployment](#deployment)
 
-Two companion documents: [`docs/TALKING-POINTS.md`](docs/TALKING-POINTS.md) for how to defend the design decisions, and [`docs/LAUNCH.md`](docs/LAUNCH.md) for the deploy and demo checklist.
+Companion documents: [`docs/PROJECT-BRIEF.md`](docs/PROJECT-BRIEF.md) is the complete brief — architecture, every decision, and an interview script with likely questions. [`docs/TALKING-POINTS.md`](docs/TALKING-POINTS.md) covers defending specific choices, and [`docs/LAUNCH.md`](docs/LAUNCH.md) is the deploy and demo checklist.
 
 ---
 
