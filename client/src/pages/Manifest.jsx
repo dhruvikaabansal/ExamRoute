@@ -18,12 +18,22 @@ import { fmtDateTime, fmtTime } from '../lib/format';
  * there is one boarding path and one set of rules — a ticket cannot be boarded
  * twice, or before it is paid, whichever way staff reach it.
  */
+/** Copy, with a fallback for browsers that refuse the clipboard API. */
+async function copyLink(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    window.prompt('Copy this link:', text);
+  }
+}
+
 export default function Manifest() {
   const { busId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [working, setWorking] = useState('');
+  const [copied, setCopied] = useState(false);
 
   function load() {
     return api
@@ -169,7 +179,7 @@ export default function Manifest() {
 
       {allBoarded && (
         <p className="notice bg-green-50 border-green-200 text-green-800 mb-4">
-          Everyone is aboard. The bus can leave.
+          Every stop is complete — the bus can head for the exam centre.
         </p>
       )}
 
@@ -204,8 +214,23 @@ export default function Manifest() {
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-500">
-                {stop.boarded}/{stop.passengers.length} boarded · {stop.seats} seats
+              {/*
+                Boarding runs stop by stop, so the useful question standing at
+                stop three is not "is the bus full" but "is this stop done, can
+                we pull out". Marking each stop complete answers it without
+                counting names.
+              */}
+              <span
+                className={`text-xs ${
+                  stop.boarded === stop.passengers.length
+                    ? 'text-green-700 font-medium'
+                    : 'text-slate-500'
+                }`}
+              >
+                {stop.boarded === stop.passengers.length
+                  ? `all ${stop.passengers.length} aboard · drive on`
+                  : `${stop.boarded}/${stop.passengers.length} boarded`}{' '}
+                · {stop.seats} seats
               </span>
             </div>
 
@@ -260,39 +285,89 @@ export default function Manifest() {
       </p>
 
       {/*
-        Boarding is the middle of an errand, not the end of one. Ticking off
-        the last name used to leave staff on a page that congratulated them and
-        stopped — the driver's screen, which is what actually happens next, was
-        three clicks away on another page.
+        The order of operations here was written backwards, and the copy said
+        so out loud: it told staff the driver starts sharing GPS once everyone
+        is aboard. That cannot be right. Boarding happens progressively — a
+        few passengers at the first stop, a few more at the second — so
+        "everyone aboard" is only true at the *last* stop, by which point
+        tracking has been useless for the entire journey.
+
+        GPS has to start when the bus starts moving, precisely so the students
+        waiting at stops three, four and five can watch it coming. So the link
+        goes to the driver before departure, and this panel now says that.
       */}
       <NextStep
+        title={allBoarded ? 'This bus is done boarding' : 'What happens next'}
         actions={[
-          allBoarded && driverUrl
-            ? { href: driverUrl, label: 'Open the driver page' }
-            : position?.next
-              ? { to: `/manifest/${position.next.id}`, label: `Board ${position.next.label}` }
-              : { to: '/admin', label: 'Back to all buses' },
-          allBoarded && position?.next
-            ? { to: `/manifest/${position.next.id}`, label: `Next: ${position.next.label}` }
-            : null,
-          { to: '/admin', label: 'All buses for this sitting' },
+          position?.next
+            ? { to: `/manifest/${position.next.id}`, label: `Board ${position.next.label}` }
+            : { to: '/admin', label: 'All buses for this sitting' },
+          position?.next ? { to: '/admin', label: 'All buses for this sitting' } : null,
         ].filter(Boolean)}
       >
         {allBoarded ? (
           <>
-            Everyone on this bus is aboard, so it can leave. The driver opens their own
-            link and starts sharing GPS — that is what puts the moving bus on every
-            passenger&apos;s tracking screen.
+            Every stop on this route is complete, so the bus can head straight for{' '}
+            {bus.center || 'the exam centre'} — due {fmtTime(bus.arrivalTime)}.
           </>
         ) : (
           <>
-            {totals.remaining} passenger{totals.remaining === 1 ? '' : 's'} still to board.
-            Ring anyone who has not arrived using the number beside their name; the bus
-            leaves at {fmtTime(bus.departureTime)} either way, because waiting makes
-            everyone aboard late for the same exam.
+            Passengers board stop by stop as the bus reaches each one, so this list fills
+            up over the course of the run rather than all at once. Ring anyone who has not
+            arrived using the number beside their name — the bus leaves each stop on time
+            either way, because waiting makes everyone already aboard late for the same
+            exam.
           </>
         )}
       </NextStep>
+
+      {/*
+        The driver link had no way to actually reach a driver. "Open the driver
+        page" opens it here, on an admin's laptop, which is the one device it
+        is not for — the whole point of a capability link is that it works on
+        the driver's own phone with no account. So the primary action is to
+        copy it and send it.
+      */}
+      {driverUrl && (
+        <div className="card p-5 mt-4">
+          <p className="text-xs font-semibold tracking-wide uppercase text-slate-400">
+            Before the bus leaves
+          </p>
+          <p className="text-sm text-slate-600 mt-1.5">
+            Send this link to the driver — on WhatsApp, or however you reach them. They
+            open it on their phone, with no login, and press <b>Share my real GPS</b>{' '}
+            before pulling out of {data.stops[0]?.name || 'the first stop'}. That is what
+            puts the moving bus on the tracking screen of every student still waiting
+            further down the route.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <button
+              onClick={async () => {
+                await copyLink(driverUrl);
+                setCopied(true);
+              }}
+              className="btn-primary"
+            >
+              {copied ? 'Link copied' : 'Copy the driver link'}
+            </button>
+            <a
+              href={driverUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-slate-500 hover:text-brand transition"
+            >
+              Preview it
+            </a>
+          </div>
+
+          <p className="text-xs text-slate-400 mt-3 break-all">{driverUrl}</p>
+          <p className="text-xs text-slate-400 mt-2">
+            Anyone holding this link can report a position for this bus and nothing else.
+            If it goes astray, rotate it from the admin page and the old one stops working.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

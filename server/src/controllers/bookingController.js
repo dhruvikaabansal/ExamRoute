@@ -9,6 +9,7 @@ import { refundPayment } from '../services/paymentGateway.js';
 import { liveLocation } from './driverController.js';
 import { assignStop } from '../services/stopService.js';
 import { ApiError } from '../utils/apiError.js';
+import { isDifferentIstDay, formatIst } from '../utils/time.js';
 import {
   assertCoordinates,
   assertObjectId,
@@ -61,6 +62,49 @@ function assertBookingOpen(exam, session) {
     );
   if (new Date(session.gateClose).getTime() < now)
     throw ApiError.badRequest('That exam session has already taken place');
+}
+
+/**
+ * Refuses a second seat on a day the student is already travelling.
+ *
+ * The unique index on (user, session) stops someone booking the *same* sitting
+ * twice, which is the obvious case. It says nothing about the real one: exams
+ * collide. JEE Main and CUET can fall on the same date, and a student browsing
+ * two exam pages can quite reasonably end up holding a seat on two buses that
+ * leave two different towns at four in the morning for two different cities.
+ *
+ * Only one of those journeys can happen. The other is a seat held out of
+ * circulation, a fare paid for nothing, and — worse — a passenger the boarding
+ * list expects who is two hundred kilometres away.
+ *
+ * The rule is the whole IST calendar day rather than an overlap of exam hours,
+ * and that is deliberate. What ExamRoute sells is not two hours in a hall, it
+ * is a bus journey: an overnight departure, a multi-stop run, and an arrival
+ * timed to a gate. Two of those cannot share a morning even when the papers
+ * themselves do not overlap.
+ *
+ * The clash is named in the error, because "you already have a booking" with
+ * no clue which one leaves the student hunting through My Bookings.
+ */
+async function assertNoClashingSitting(userId, session, existing) {
+  const held = await Booking.find({
+    user: userId,
+    status: { $in: ['pending', 'paid', 'assigned'] },
+  }).populate('session exam');
+
+  for (const booking of held) {
+    if (existing && String(booking._id) === String(existing._id)) continue;
+    if (!booking.session) continue; // ghost of a re-seeded sitting
+    if (String(booking.session._id) === String(session._id)) continue; // same sitting: handled above
+
+    if (!isDifferentIstDay(booking.session.examStart, session.examStart)) {
+      throw ApiError.conflict(
+        `You already have a seat booked for ${booking.exam?.name || 'another exam'} ` +
+          `on ${formatIst(booking.session.examStart)} — a bus can only take you to one ` +
+          'exam that day. Cancel that booking first if this is the one you need.'
+      );
+    }
+  }
 }
 
 /**
@@ -148,6 +192,7 @@ export async function createBooking(req, res) {
       'You have already paid for a seat on this sitting — see it under My Bookings.'
     );
 
+  await assertNoClashingSitting(req.user._id, session, existing);
   await assertCentreHasRoom(session, center, seats, existing);
 
   // Fare is always derived server-side from validated coordinates — the client

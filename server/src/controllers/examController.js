@@ -20,15 +20,22 @@ export async function getExam(req, res) {
 /**
  * GET /api/exams/:id/sessions — all date+shift sittings for an exam.
  *
- * Past sittings are filtered out: offering a student a bus to an exam that
- * already happened is a booking that can only fail later.
+ * By default past sittings are filtered out: offering a student a bus to an
+ * exam that already happened is a booking that can only fail later.
+ *
+ * `?includePast=1` turns that off, for the admin screen. Hiding history there
+ * was the wrong default and produced a genuinely confusing screen — once an
+ * exam's dates had passed, the sitting dropdown went empty, the routing button
+ * greyed out, and the page said "run the routing engine once students have
+ * paid", which is not what was wrong at all. Operations staff need to look at
+ * what happened as much as at what is coming.
  */
 export async function listSessionsForExam(req, res) {
   const examId = assertObjectId(req.params.id, 'exam id');
-  const sessions = await ExamSession.find({
-    exam: examId,
-    gateClose: { $gt: new Date() },
-  }).sort({ date: 1, examStart: 1 });
+  const filter = { exam: examId };
+  if (req.query.includePast !== '1') filter.gateClose = { $gt: new Date() };
+
+  const sessions = await ExamSession.find(filter).sort({ date: 1, examStart: 1 });
   res.json(sessions);
 }
 

@@ -54,9 +54,17 @@ export default function Admin() {
 
   useEffect(() => {
     if (!examId) return;
-    api.get(`/exams/${examId}/sessions`).then((res) => {
+    /*
+      Admin sees past sittings too. The student-facing list hides them — a bus
+      to an exam that already happened is not a thing to sell — but hiding them
+      here emptied the dropdown the moment an exam's dates passed, which read
+      as a broken page rather than as history.
+    */
+    api.get(`/exams/${examId}/sessions?includePast=1`).then((res) => {
       setSessions(res.data);
-      setSessionId(res.data[0]?._id || '');
+      // Default to the next upcoming sitting, not the oldest one in the list.
+      const upcoming = res.data.find((s) => new Date(s.gateClose).getTime() > Date.now());
+      setSessionId((upcoming || res.data[res.data.length - 1])?._id || '');
     });
   }, [examId]);
 
@@ -109,6 +117,10 @@ export default function Admin() {
 
   const driverUrl = (bus) => `${window.location.origin}/drive/${bus.driverToken}`;
 
+  const selectedSession = sessions.find((s) => s._id === sessionId);
+  const selectedIsPast =
+    selectedSession && new Date(selectedSession.gateClose).getTime() < Date.now();
+
   return (
     <div>
       <h2 className="page-title mb-5">Admin — Routing</h2>
@@ -135,21 +147,38 @@ export default function Admin() {
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
           >
+            {sessions.length === 0 && <option value="">No sittings for this exam</option>}
             {sessions.map((s) => (
               <option key={s._id} value={s._id}>
                 {fmtDate(s.date)} — {s.shiftLabel}
+                {new Date(s.gateClose).getTime() < Date.now() ? ' (past)' : ''}
               </option>
             ))}
           </select>
         </div>
         <button
           onClick={runRouting}
-          disabled={busy || !sessionId}
+          disabled={busy || !sessionId || selectedIsPast}
           className="btn-primary"
+          title={selectedIsPast ? 'This sitting has already taken place' : undefined}
         >
           {busy ? 'Running…' : 'Run routing engine'}
         </button>
       </div>
+
+      {/*
+        A greyed-out button with no explanation is the worst possible state.
+        Routing a sitting that already happened would rebuild buses for a
+        journey nobody is taking, so it is refused — but say which of the two
+        reasons applies, rather than leaving someone to guess.
+      */}
+      {selectedIsPast && (
+        <p className="notice bg-slate-50 border-slate-200 text-slate-600 mb-4">
+          This sitting has already taken place. Its buses and boarding lists are
+          below as a record — routing is disabled because there is no journey left
+          to plan.
+        </p>
+      )}
 
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
@@ -197,8 +226,14 @@ export default function Admin() {
       */}
       {buses.length === 0 && summary && (
         <p className="card-pad muted">
-          No buses for this sitting yet. Routing only picks up bookings that are
-          already paid — this sitting has {summary.paid} of {summary.total}.
+          {selectedIsPast
+            ? 'No buses were ever formed for this sitting.'
+            : summary.paid === 0
+              ? `No buses yet. Routing runs on the booking deadline and only picks up
+                 bookings that are already paid — this sitting has none of ${summary.total} paid so far.`
+              : `No buses yet. ${summary.paid} of ${summary.total} bookings are paid;
+                 routing runs automatically once the booking window closes, or press
+                 the button to run it now.`}
         </p>
       )}
 

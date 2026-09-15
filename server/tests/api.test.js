@@ -367,6 +367,74 @@ describe.skipIf(!dbReady)('booking rules', () => {
     }
   });
 
+  /*
+    Exams collide. JEE Main and CUET can fall on the same date, and the unique
+    index on (user, session) does nothing about that — two different sittings
+    are two different rows. But only one of the two bus journeys can happen,
+    and the other leaves a boarding list expecting someone who is two hundred
+    kilometres away.
+  */
+  it('refuses a second exam on a day the student is already travelling', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const user = await makeUser();
+
+    const first = await makeExamWithSession({ code: 'JEE', daysAway: 20, startHour: 9 });
+    await makePaidBooking({
+      user,
+      exam: first.exam,
+      session: first.session,
+      center,
+      coordinates: SIKAR,
+    });
+
+    // A different exam, a different sitting — same calendar day, afternoon shift.
+    const clash = await makeExamWithSession({ code: 'CUET', daysAway: 20, startHour: 14 });
+
+    const res = await asUser(
+      request(app).post('/api/bookings').send(bookingBody(clash.exam, clash.session, center)),
+      user
+    );
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/one exam that day/i);
+  });
+
+  it('still allows a second exam on a different day', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const user = await makeUser();
+
+    const first = await makeExamWithSession({ code: 'JEE', daysAway: 20 });
+    await makePaidBooking({
+      user,
+      exam: first.exam,
+      session: first.session,
+      center,
+      coordinates: SIKAR,
+    });
+
+    const later = await makeExamWithSession({ code: 'CUET', daysAway: 27 });
+    const res = await asUser(
+      request(app).post('/api/bookings').send(bookingBody(later.exam, later.session, center)),
+      user
+    );
+
+    expect(res.status).toBe(201);
+  });
+
+  it('does not treat the student’s own unpaid booking as a clash when they retry', async () => {
+    const { exam, session, center, user } = await setup();
+    const body = bookingBody(exam, session, center);
+
+    await asUser(request(app).post('/api/bookings').send(body), user);
+    // Second attempt on the same sitting must still resume, not trip the
+    // same-day rule on itself.
+    const again = await asUser(request(app).post('/api/bookings').send(body), user);
+    expect(again.status).toBe(200);
+    expect(again.body.resumed).toBe(true);
+  });
+
   it('rejects coordinates outside India', async () => {
     const { exam, session, center, user } = await setup();
     const res = await asUser(
