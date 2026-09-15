@@ -154,12 +154,14 @@ async function demo() {
           homeLocation: { type: 'Point', coordinates: coords, address: town },
         });
 
-        const { distanceKm, baseFare, subsidyPercent, fare } = computeFare(
-          coords,
-          center.location.coordinates,
-          seats
-        );
+        // Stop first, because the fare is billed on the leg the bus drives.
         const assigned = await assignStop(coords);
+        const { distanceKm, homeDistanceKm, baseFare, subsidyPercent, fare } = computeFare(
+          assigned?.stop.location.coordinates ?? coords,
+          center.location.coordinates,
+          seats,
+          coords
+        );
 
         const booking = await Booking.create({
           user: user._id,
@@ -171,6 +173,7 @@ async function demo() {
           companions,
           seats,
           distanceKm,
+          homeDistanceKm,
           baseFare,
           subsidyPercent,
           fare,

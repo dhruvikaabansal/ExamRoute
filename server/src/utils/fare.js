@@ -25,20 +25,52 @@ import { haversineKm } from '../services/mapsService.js';
  * district, 30% from across the state, 50% only for the genuinely extreme
  * journeys the cap was written for. Same policy, same code, a band chosen
  * against the real distribution instead of a round number.
+ *
+ * ---
+ *
+ * TWO DIFFERENT DISTANCES, AND THEY ARE NOT THE SAME ONE.
+ *
+ * The charge and the discount answer different questions, so they measure
+ * from different places.
+ *
+ *   - **You are billed from the pickup stop.** That is the leg the bus
+ *     actually drives. Billing from the student's front door charged them for
+ *     kilometres no bus covers — the walk, auto or local bus to the stop is
+ *     their own journey, already paid for separately.
+ *
+ *     The version that did this had a worse symptom than over-charging: two
+ *     students boarding the *same stop* for the *same seat* on the *same bus*
+ *     paid different fares, because one of them lived further from that stop.
+ *     Identical service, different price, for a reason neither of them could
+ *     see.
+ *
+ *   - **You are subsidised from home.** Hardship is about where you live, not
+ *     where you board. A student in a remote village who travels 40 km just to
+ *     reach the bus stand is exactly who the subsidy exists for, and measuring
+ *     it from the stop would quietly erase that.
+ *
+ * So: pay for what the bus drives, get discounted for how far you actually
+ * live. `homeCoords` defaults to the boarding point, which keeps the honest
+ * behaviour for callers that genuinely have only one location — a fare
+ * estimate taken before a stop has been assigned, for instance.
  */
-export function computeFare(homeCoords, centerCoords, seats = 1) {
+export function computeFare(boardAtCoords, centerCoords, seats = 1, homeCoords = boardAtCoords) {
   const base = Number(process.env.BASE_FARE || 100);
   const perKm = Number(process.env.FARE_PER_KM || 3);
   const maxSubsidy = Number(process.env.MAX_SUBSIDY_PCT || 50);
   const bandKm = Number(process.env.SUBSIDY_BAND_KM || 50);
   const perBand = Number(process.env.SUBSIDY_PER_BAND_PCT || 5);
 
-  const distanceKm = Math.round(haversineKm(homeCoords, centerCoords));
+  // Billed: the leg the bus drives.
+  const distanceKm = Math.round(haversineKm(boardAtCoords, centerCoords));
+  // Subsidised: how far the student actually lives from the exam.
+  const homeDistanceKm = Math.round(haversineKm(homeCoords, centerCoords));
+
   const perSeat = base + perKm * distanceKm;
   const baseFare = Math.round(perSeat * seats);
 
-  const subsidyPercent = Math.min(maxSubsidy, Math.floor(distanceKm / bandKm) * perBand);
+  const subsidyPercent = Math.min(maxSubsidy, Math.floor(homeDistanceKm / bandKm) * perBand);
   const fare = Math.round(baseFare * (1 - subsidyPercent / 100));
 
-  return { distanceKm, baseFare, subsidyPercent, fare };
+  return { distanceKm, homeDistanceKm, baseFare, subsidyPercent, fare };
 }

@@ -155,8 +155,23 @@ export async function quote(req, res) {
   const coordinates = assertCoordinates(req.body.coordinates);
   const seats = 1 + assertCompanions(req.body.companions);
 
-  const result = computeFare(coordinates, center.location.coordinates, seats);
-  res.json({ ...result, seats });
+  /*
+    The estimate has to be the price, so it is computed the same way the
+    booking will be: billed from the stop the student would actually board at.
+    Quoting from their front door and then charging from the stop would make
+    the estimate a number that never appears again.
+  */
+  const assigned = await assignStop(coordinates);
+  const boardAt = assigned?.stop.location.coordinates ?? coordinates;
+
+  const result = computeFare(boardAt, center.location.coordinates, seats, coordinates);
+  res.json({
+    ...result,
+    seats,
+    // So the fare breakdown can say which leg is being charged for.
+    boardingStop: assigned?.stop.name ?? null,
+    stopDistanceKm: assigned?.distanceKm ?? null,
+  });
 }
 
 // POST /api/bookings  { examId, sessionId, centerId, coordinates, address, companions, rollNumber }
@@ -195,17 +210,27 @@ export async function createBooking(req, res) {
   await assertNoClashingSitting(req.user._id, session, existing);
   await assertCentreHasRoom(session, center, seats, existing);
 
-  // Fare is always derived server-side from validated coordinates — the client
-  // never supplies a price, only a location we have checked.
-  const { distanceKm, baseFare, subsidyPercent, fare } = computeFare(
-    coordinates,
-    center.location.coordinates,
-    seats
-  );
-
   // Geofenced nearest pickup stop, assigned immediately and refined by the
   // routing engine, which uses this same function so the answer cannot drift.
+  // This has to happen *before* pricing, because the stop is what gets billed.
   const assigned = await assignStop(coordinates);
+
+  /*
+    Fare is always derived server-side from validated coordinates — the client
+    never supplies a price, only a location we have checked.
+
+    Billed from the stop the bus collects them at, subsidised on how far they
+    live from the exam. Charging from the front door billed students for
+    kilometres no bus drives, and made two people boarding the same stop for
+    the same seat pay different amounts.
+  */
+  const boardAt = assigned?.stop.location.coordinates ?? coordinates;
+  const { distanceKm, homeDistanceKm, baseFare, subsidyPercent, fare } = computeFare(
+    boardAt,
+    center.location.coordinates,
+    seats,
+    coordinates
+  );
 
   const details = {
     exam: exam._id,
@@ -215,6 +240,7 @@ export async function createBooking(req, res) {
     companions: seats - 1,
     seats,
     distanceKm,
+    homeDistanceKm,
     baseFare,
     subsidyPercent,
     fare,

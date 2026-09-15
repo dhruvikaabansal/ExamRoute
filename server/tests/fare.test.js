@@ -52,6 +52,38 @@ describe('fare model', () => {
     expect(typical.subsidyPercent).toBeGreaterThan(0);
   });
 
+  /*
+    The charge and the discount measure from different places, and this is the
+    bug that made it matter: two students boarding the same stop for the same
+    seat on the same bus used to pay different fares, because one of them
+    lived further from that stop. Identical service, different price.
+  */
+  it('bills the bus journey, not the walk to the stop', () => {
+    const stop = SIKAR;
+    const nearTheStop = computeFare(stop, JAIPUR, 1, [75.14, 27.61]); // lives beside it
+    const farFromStop = computeFare(stop, JAIPUR, 1, BIKANER); // lives 200 km away
+
+    // Same stop, same seat, same bus → the same price to ride it.
+    expect(farFromStop.baseFare).toBe(nearTheStop.baseFare);
+    expect(farFromStop.distanceKm).toBe(nearTheStop.distanceKm);
+  });
+
+  it('subsidises on where the student lives, not where they board', () => {
+    const stop = SIKAR;
+    const nearby = computeFare(stop, JAIPUR, 1, [75.14, 27.61]);
+    const remote = computeFare(stop, JAIPUR, 1, BIKANER);
+
+    // The one who travelled further to reach the bus is the one the subsidy
+    // exists for, so they pay less for the identical seat.
+    expect(remote.subsidyPercent).toBeGreaterThan(nearby.subsidyPercent);
+    expect(remote.fare).toBeLessThan(nearby.fare);
+  });
+
+  it('falls back to one location when no stop is known yet', () => {
+    const quoted = computeFare(SIKAR, JAIPUR, 1);
+    expect(quoted.homeDistanceKm).toBe(quoted.distanceKm);
+  });
+
   it('spreads subsidy across the distances people actually travel', () => {
     const rates = [
       computeFare([75.82, 26.45], JAIPUR, 1), // ~55 km, next district

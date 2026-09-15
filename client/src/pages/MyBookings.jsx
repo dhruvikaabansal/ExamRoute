@@ -263,7 +263,7 @@ function BookingCard({ b, past, showQR, setShowQR, paying, cancelling, onPay, on
         {b.rollNumber && ` · Roll ${b.rollNumber}`}
       </p>
       <p className="text-sm text-slate-500">
-        {b.seats} seat{b.seats > 1 ? 's' : ''} · {b.distanceKm} km ·{' '}
+        {b.seats} seat{b.seats > 1 ? 's' : ''} · {b.distanceKm} km by bus ·{' '}
         {isPaid ? `paid ₹${b.fare}` : `fare ₹${b.fare}`}
         {b.subsidyPercent > 0 && (
           <span className="text-green-700"> ({b.subsidyPercent}% subsidy)</span>

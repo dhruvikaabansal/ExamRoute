@@ -63,7 +63,7 @@ export default function Confirmation() {
           {[
             ['Roll number', booking.rollNumber || '—'],
             ['Seats', booking.seats],
-            ['Distance', `${booking.distanceKm} km`],
+            ['Bus journey', `${booking.distanceKm} km`],
             [
               'Paid',
               <>

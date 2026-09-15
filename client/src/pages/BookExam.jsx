@@ -265,8 +265,15 @@ export default function BookExam() {
       {quote ? (
         <div className="card p-6 mt-4 text-sm">
           <div className="space-y-1.5">
+            {/*
+              Name the leg being charged for. "Distance to the centre" was
+              ambiguous between two different numbers, and the one it showed
+              was not the one being billed.
+            */}
             <p className="flex justify-between">
-              <span className="text-slate-500">Distance to the centre</span>
+              <span className="text-slate-500">
+                {quote.boardingStop ? `Bus journey from ${quote.boardingStop}` : 'Bus journey'}
+              </span>
               <b>{quote.distanceKm} km</b>
             </p>
             <p className="flex justify-between">
@@ -278,7 +285,10 @@ export default function BookExam() {
               <b>₹{quote.baseFare}</b>
             </p>
             <p className="flex justify-between text-green-700">
-              <span>Subsidy for your distance</span>
+              <span>
+                Subsidy
+                {quote.homeDistanceKm != null && ` — you live ${quote.homeDistanceKm} km away`}
+              </span>
               <b>{quote.subsidyPercent}%</b>
             </p>
           </div>

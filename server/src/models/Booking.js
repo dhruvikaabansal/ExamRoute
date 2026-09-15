@@ -28,8 +28,18 @@ const bookingSchema = new mongoose.Schema(
     companions: { type: Number, default: 0, min: 0, max: 3 },
     seats: { type: Number, default: 1 }, // = 1 + companions
 
-    // fare breakdown
+    /*
+      Fare breakdown.
+
+      Two distances, because the charge and the discount answer different
+      questions. `distanceKm` is the leg the bus drives — pickup stop to
+      centre — and is what the fare is calculated on. `homeDistanceKm` is how
+      far the student actually lives from the exam, and is what the subsidy is
+      graded on, because hardship is about where you live rather than where
+      you happen to board.
+    */
     distanceKm: { type: Number },
+    homeDistanceKm: { type: Number },
     baseFare: { type: Number }, // before subsidy, for all seats
     subsidyPercent: { type: Number, default: 0 },
     fare: { type: Number, required: true }, // final payable
