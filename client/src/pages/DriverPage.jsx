@@ -41,13 +41,41 @@ export default function DriverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverToken]);
 
+  /**
+   * A stable id for this phone, for this link.
+   *
+   * The server pins the link to whichever device reports first, so this has to
+   * survive a page reload — otherwise the driver refreshing the page would look
+   * like a second device and lock themselves out of their own bus.
+   */
+  function deviceId() {
+    const key = `examroute_driver_${driverToken.slice(0, 12)}`;
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID?.() || `d_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(key, id);
+    }
+    return id;
+  }
+
   async function post(lng, lat) {
     setPos({ lng, lat });
     try {
-      await api.post(`/driver/${driverToken}/location`, { lng, lat });
+      await api.post(`/driver/${driverToken}/location`, { lng, lat, deviceId: deviceId() });
       setLast(new Date());
-    } catch {
-      /* transient failures are expected on a moving vehicle — keep trying */
+      setErr('');
+    } catch (e) {
+      /*
+        A transient failure on a moving vehicle is expected and ignored — patchy
+        signal is the normal case, and retrying is the whole design.
+        Being refused is different: this link belongs to another phone, and
+        every further reading would be thrown away. Say so and stop, rather
+        than looking like it is working.
+      */
+      if (e.response?.status === 409) {
+        stop();
+        setErr(e.response.data?.message || 'Another device is already sharing this bus.');
+      }
     }
   }
 

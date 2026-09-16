@@ -44,6 +44,27 @@ const busSchema = new mongoose.Schema(
     // Rotatable from the admin page if a link leaks.
     driverToken: { type: String, index: true },
 
+    /**
+     * The device that claimed the driver link.
+     *
+     * A capability link is a bearer token: whoever holds it can use it. That is
+     * the right trade for someone who works one trip and should not need an
+     * account, but it leaves one failure that is not theoretical — the link
+     * gets forwarded. Two phones then post positions for the same bus, the
+     * field is overwritten by whichever wrote last, and every passenger
+     * watching the map sees the bus jump between two places. Nothing in the
+     * system notices, and the wrong one might be the one being believed.
+     *
+     * So the first device to report a position claims the link, and the rest
+     * are refused. It does not make the token harder to guess; it makes a
+     * leaked or forwarded token far less useful, and — more importantly — it
+     * makes the conflict visible instead of silent.
+     *
+     * Recovery is rotation: a new link clears the pairing, so a driver whose
+     * phone died is one admin click away from working again.
+     */
+    driverDeviceId: { type: String },
+
     // live tracking: the driver's device posts its position here periodically
     currentLocation: { lng: Number, lat: Number },
     lastLocationAt: { type: Date },

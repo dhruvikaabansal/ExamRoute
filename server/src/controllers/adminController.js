@@ -204,6 +204,10 @@ export async function rotateDriverToken(req, res) {
   if (!bus) throw ApiError.notFound('Bus not found');
 
   bus.driverToken = crypto.randomBytes(24).toString('hex');
+  // A new link is a fresh pairing. This is the recovery path for a driver whose
+  // phone died, and the reason pinning the link to one device is safe to do at
+  // all — otherwise a dead battery would strand the bus untracked.
+  bus.driverDeviceId = undefined;
   await bus.save();
   res.json({ driverToken: bus.driverToken });
 }

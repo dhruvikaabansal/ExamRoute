@@ -1,3 +1,4 @@
+import Bus from '../models/Bus.js';
 import { ApiError } from '../utils/apiError.js';
 
 /**
@@ -47,7 +48,17 @@ export async function getDriverBus(req, res) {
   });
 }
 
-// POST /api/driver/:driverToken/location  { lng, lat }
+/**
+ * POST /api/driver/:driverToken/location  { lng, lat, deviceId }
+ *
+ * The first device to report a position claims this bus; later ones are
+ * refused.
+ *
+ * Without that, a forwarded link means two phones writing to the same field.
+ * The last write wins, the marker jumps between two places every few seconds,
+ * and every passenger watching it is being shown a position that may not be
+ * their bus. Silent wrongness is the bad outcome here — a refusal is not.
+ */
 export async function postDriverLocation(req, res) {
   const lng = Number(req.body.lng);
   const lat = Number(req.body.lat);
@@ -56,9 +67,37 @@ export async function postDriverLocation(req, res) {
   if (lng < -180 || lng > 180 || lat < -90 || lat > 90)
     throw ApiError.badRequest('Coordinates out of range');
 
+  const deviceId = String(req.body.deviceId || '').slice(0, 64);
+  if (!deviceId) throw ApiError.badRequest('Missing device id');
+
+  if (!req.bus.driverDeviceId) {
+    // First claim wins, and it is atomic: two devices starting together cannot
+    // both pass, because only one update matches "nobody has claimed it yet".
+    const claimed = await Bus.findOneAndUpdate(
+      { _id: req.bus._id, driverDeviceId: { $in: [null, ''] } },
+      { $set: { driverDeviceId: deviceId } },
+      { new: true }
+    );
+    if (!claimed) {
+      const current = await Bus.findById(req.bus._id).select('driverDeviceId');
+      if (current?.driverDeviceId !== deviceId) throw sharedLinkError();
+    }
+    req.bus.driverDeviceId = deviceId;
+  } else if (req.bus.driverDeviceId !== deviceId) {
+    throw sharedLinkError();
+  }
+
   req.bus.currentLocation = { lng, lat };
   req.bus.lastLocationAt = new Date();
   await req.bus.save();
 
   res.json({ ok: true, lastLocationAt: req.bus.lastLocationAt });
+}
+
+function sharedLinkError() {
+  return ApiError.conflict(
+    'Another device is already sharing this bus. Two devices cannot report the same ' +
+      'bus at once — ask the operations team to rotate the link if this phone should ' +
+      'be the one tracking.'
+  );
 }

@@ -900,7 +900,7 @@ describe.skipIf(!dbReady)('driver capability link', () => {
     const bus = await routedBus();
     const res = await request(app)
       .post(`/api/driver/${bus.driverToken}/location`)
-      .send({ lng: 75.79, lat: 26.92 });
+      .send({ lng: 75.79, lat: 26.92, deviceId: 'driver-phone' });
 
     expect(res.status).toBe(200);
     const updated = await Bus.findById(bus._id);
@@ -927,6 +927,64 @@ describe.skipIf(!dbReady)('driver capability link', () => {
       .post(`/api/driver/${bus.driverToken}/location`)
       .send({ lng: 'north', lat: 26 });
     expect(res.status).toBe(400);
+  });
+
+  /*
+    A capability link is a bearer token, so the failure that matters is not
+    guessing it — it is forwarding it. Two phones writing to one field means
+    last-write-wins, a marker that jumps between two places, and passengers
+    being shown a position that may not be their bus. Silent wrongness is the
+    bad outcome; a refusal is not.
+  */
+  it('pins the driver link to the first device that claims it', async () => {
+    const bus = await routedBus();
+
+    const first = await request(app)
+      .post(`/api/driver/${bus.driverToken}/location`)
+      .send({ lng: 75.79, lat: 26.92, deviceId: 'phone-a' });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post(`/api/driver/${bus.driverToken}/location`)
+      .send({ lng: 70.0, lat: 22.0, deviceId: 'phone-b' });
+    expect(second.status).toBe(409);
+    expect(second.body.message).toMatch(/another device/i);
+
+    // And the position students see is still the real driver's, not the
+    // interloper's.
+    const after = await Bus.findById(bus._id);
+    expect(after.currentLocation.lat).toBeCloseTo(26.92, 2);
+  });
+
+  it('keeps accepting the phone that claimed it, across reconnects', async () => {
+    const bus = await routedBus();
+    for (const lat of [26.92, 26.95, 26.99]) {
+      const res = await request(app)
+        .post(`/api/driver/${bus.driverToken}/location`)
+        .send({ lng: 75.79, lat, deviceId: 'phone-a' });
+      expect(res.status).toBe(200);
+    }
+  });
+
+  it('frees the pairing when the link is rotated, so a dead phone is recoverable', async () => {
+    const bus = await routedBus();
+    const admin = await makeUser({ role: 'admin' });
+
+    await request(app)
+      .post(`/api/driver/${bus.driverToken}/location`)
+      .send({ lng: 75.79, lat: 26.92, deviceId: 'dead-phone' });
+
+    const rotated = await asUser(
+      request(app).post(`/api/admin/bus/${bus._id}/rotate-driver-token`),
+      admin
+    );
+    expect(rotated.status).toBe(200);
+
+    // A replacement phone can claim the new link straight away.
+    const res = await request(app)
+      .post(`/api/driver/${rotated.body.driverToken}/location`)
+      .send({ lng: 75.79, lat: 26.92, deviceId: 'replacement-phone' });
+    expect(res.status).toBe(200);
   });
 
   it('scopes the token to one bus — rotating it invalidates the old link', async () => {
