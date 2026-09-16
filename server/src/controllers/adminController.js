@@ -54,6 +54,20 @@ export async function bookingsForSession(req, res) {
       cancelled: bookings.filter((b) => b.status === 'cancelled').length,
       seatsToRoute: seatsOf(paid),
       boarded: bookings.filter((b) => b.boarded).length,
+      /*
+        Paid, and on no bus.
+
+        Before the deadline this is just the queue waiting to be routed. After
+        buses exist it is the number that matters most on this screen: someone
+        has paid for a seat the engine could not place — their stop is not on
+        any route with room — and the scheduler deliberately refuses to force
+        them on, because the alternatives (another bus, or a new stop that
+        delays everyone aboard) are an operator's decision.
+
+        It used to exist only in a server log, which meant in practice nobody
+        ever saw it.
+      */
+      unassigned: bookings.filter((b) => b.status === 'paid').length,
       // A refund that failed at the gateway is money we still owe a student.
       // It has to be visible to somebody or it is just a lost rupee, so it is
       // surfaced here rather than sitting in a field nobody reads.

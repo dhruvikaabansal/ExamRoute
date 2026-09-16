@@ -270,14 +270,34 @@ function BookingCard({ b, past, showQR, setShowQR, paying, cancelling, onPay, on
         )}
       </p>
 
+      {/*
+        An unpaid seat has a hard expiry, and this is the screen where one
+        sits. Saying only "complete payment" implies it will wait indefinitely;
+        it will not. Booking, paying and routing all stop at the same moment,
+        and the seat goes back in the pool the instant they do.
+      */}
       {!past && b.status === 'pending' && (
-        <button
-          onClick={() => onPay(b._id)}
-          disabled={paying === b._id}
-          className="btn-primary mt-3"
-        >
-          {paying === b._id ? 'Processing…' : `Complete payment · ₹${b.fare}`}
-        </button>
+        <>
+          <p className="notice bg-amber-50 border-amber-200 text-amber-800 mt-3">
+            <b>This seat is not paid for yet.</b>{' '}
+            {b.exam?.bookingDeadline ? (
+              <>
+                Pay by <b>{fmtDateTime(b.exam.bookingDeadline)}</b> or it is released to
+                another student — buses are formed straight after that, and a seat cannot be
+                added once they are.
+              </>
+            ) : (
+              'Pay before bookings close for this exam, or it is released to another student.'
+            )}
+          </p>
+          <button
+            onClick={() => onPay(b._id)}
+            disabled={paying === b._id}
+            className="btn-primary mt-3"
+          >
+            {paying === b._id ? 'Processing…' : `Complete payment · ₹${b.fare}`}
+          </button>
+        </>
       )}
 
       {!past && b.assignedStop?.name && (
@@ -373,6 +393,18 @@ function BookingCard({ b, past, showQR, setShowQR, paying, cancelling, onPay, on
                 b.assignedStop?.name ? ` from ${b.assignedStop.name}` : ''
               }.`
             : 'This sitting has passed. Our records do not show you boarding.'}
+        </p>
+      )}
+
+      {/*
+        A seat released at the deadline was not cancelled by the student, so
+        saying only "cancelled" leaves them thinking the app lost their
+        booking. Say who did it and why.
+      */}
+      {b.status === 'cancelled' && b.cancelReason && (
+        <p className="notice bg-slate-50 border-slate-200 text-slate-600 mt-3">
+          This seat was released because it was never paid for — bookings for this exam
+          closed and the seat went back to students still waiting for one.
         </p>
       )}
 

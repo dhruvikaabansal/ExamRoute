@@ -52,6 +52,41 @@ export async function sessionsDueForRouting(now = new Date()) {
 }
 
 /**
+ * Releases seats that were reserved and never paid for.
+ *
+ * A `pending` booking holds a seat against the centre's capacity without
+ * having bought it. Before the deadline that is correct — somebody is part way
+ * through checkout. After it, the seat is simply missing from the pool: the
+ * cohort routing is about to plan around is smaller than it should be, and the
+ * student who could have taken it was told the centre was full.
+ *
+ * Cancelling rather than deleting, because the row is still the record of
+ * something that happened, and `refundStatus: 'none'` is the truthful state —
+ * no money ever moved, so none is owed.
+ *
+ * This runs before routing in the sweep, so the engine never sees a seat that
+ * nobody bought.
+ */
+export async function releaseUnpaidBookings(now = new Date()) {
+  const closedExams = await Exam.find({ bookingDeadline: { $lt: now } }).select('_id').lean();
+  if (closedExams.length === 0) return { released: 0 };
+
+  const result = await Booking.updateMany(
+    { exam: { $in: closedExams.map((e) => e._id) }, status: 'pending' },
+    {
+      $set: {
+        status: 'cancelled',
+        refundStatus: 'none',
+        cancelReason: 'Not paid before the booking deadline',
+      },
+      $unset: { bus: '', pickupTime: '', boardBy: '' },
+    }
+  );
+
+  return { released: result.modifiedCount ?? 0 };
+}
+
+/**
  * Adds bookings paid after routing to buses that already serve their stop.
  *
  * The alternative — re-running the whole sitting — produces better routes and
@@ -139,6 +174,13 @@ export async function attachLateBookings(sessionId) {
  * additions that change nothing for anyone already on board.
  */
 export async function sweepRouting({ log = console } = {}) {
+  /*
+    Unpaid seats go back in the pool first, so routing plans around the cohort
+    that actually exists rather than one padded with abandoned checkouts.
+  */
+  const { released } = await releaseUnpaidBookings();
+  if (released) log.log?.(`Routing: released ${released} unpaid booking(s) past their deadline`);
+
   const due = await sessionsDueForRouting();
   const results = [];
 

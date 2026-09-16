@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { payBooking } from '../lib/pay';
 import LocationPicker from '../components/LocationPicker';
 import AddressSearch, { reverseGeocode } from '../components/AddressSearch';
-import { fmtDate, fmtTime } from '../lib/format';
+import { fmtDate, fmtTime, fmtDateTime } from '../lib/format';
 
 // A few Rajasthan home presets so the demo has sensible distances
 const PRESETS = [
@@ -299,9 +299,23 @@ export default function BookExam() {
           <button onClick={bookAndPay} disabled={busy} className="btn-primary w-full mt-4">
             {busy ? 'Processing…' : `Pay ₹${quote.fare} and book →`}
           </button>
+          {/*
+            The deadline is the single most consequential fact on this screen
+            and it was not on it. Booking, paying and being routed all stop at
+            the same moment — so a student who books now and pays later can
+            lose the seat entirely, and nothing warned them.
+          */}
           <p className="text-xs text-slate-400 mt-3">
-            Paying holds your seat. Your bus and pickup time are set once bookings close
-            for this sitting, and appear under My Bookings.
+            Paying holds your seat.{' '}
+            {exam?.bookingDeadline && (
+              <>
+                Bookings for this exam close on{' '}
+                <b className="text-slate-500">{fmtDateTime(exam.bookingDeadline)}</b> — a seat
+                that is still unpaid at that point is released to someone else.{' '}
+              </>
+            )}
+            Your bus and pickup time are worked out once the window shuts, and appear under
+            My Bookings.
           </p>
         </div>
       ) : (

@@ -72,6 +72,9 @@ const bookingSchema = new mongoose.Schema(
       enum: ['none', 'pending', 'processed', 'failed'],
       default: 'none',
     },
+    // Why a seat was released, when it was not the student's own doing —
+    // otherwise a booking that vanished at the deadline looks like a bug.
+    cancelReason: { type: String },
     refundId: { type: String },
     refundAmount: { type: Number },
     refundedAt: { type: Date },

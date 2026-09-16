@@ -203,6 +203,25 @@ export default function Admin() {
         the seat must be released either way — so the unpaid balance has to
         surface somewhere a human looks, or it is simply lost.
       */}
+      {/*
+        Paid, and on no bus. Before routing this is just the queue. Once buses
+        exist it is the one number on this page that needs a person: the engine
+        could not place them without moving somebody else's published pickup
+        time, so it left the decision here rather than making it quietly.
+      */}
+      {buses.length > 0 && summary?.unassigned > 0 && (
+        <div className="notice bg-amber-50 border-amber-200 text-amber-800 mb-4">
+          <b>
+            {summary.unassigned} paid booking{summary.unassigned > 1 ? 's' : ''} could not be
+            placed on a bus.
+          </b>{' '}
+          Their pickup stop is not on any route with seats left. Re-run the routing engine to
+          rebuild every bus around the full cohort — that will give them a seat, but it also
+          moves pickup times for everyone already routed, so only do it if the buses have not
+          left and passengers have not been told their times.
+        </div>
+      )}
+
       {summary?.refundsFailed > 0 && (
         <div className="notice bg-red-50 border-red-200 text-red-700 mb-4">
           {summary.refundsFailed} refund{summary.refundsFailed > 1 ? 's' : ''} failed at

@@ -7,6 +7,7 @@ import Exam from '../src/models/Exam.js';
 import {
   sessionsDueForRouting,
   attachLateBookings,
+  releaseUnpaidBookings,
   sweepRouting,
 } from '../src/services/routingScheduler.js';
 import { runRoutingForSession } from '../src/services/routingEngine.js';
@@ -191,6 +192,99 @@ describe.skipIf(!dbReady)('routing scheduler', () => {
 
     // Left paid, not silently assigned to a bus that does not go there.
     expect((await Booking.findById(late._id)).status).toBe('paid');
+  });
+});
+
+describe.skipIf(!dbReady)('unpaid seats at the deadline', () => {
+  /*
+    A pending booking holds a seat against the centre's capacity without
+    having bought it. Past the deadline that seat is simply missing from the
+    pool — routing plans a smaller cohort than it should, and somebody was
+    told the centre was full because of a checkout that was abandoned.
+  */
+  it('releases a seat that was never paid for', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const { exam, session } = await closedBookingWindow();
+    const abandoned = await makePaidBooking({
+      user: await makeUser(),
+      exam,
+      session,
+      center,
+      coordinates: SIKAR,
+      status: 'pending',
+    });
+
+    const { released } = await releaseUnpaidBookings();
+    expect(released).toBe(1);
+
+    const after = await Booking.findById(abandoned._id);
+    expect(after.status).toBe('cancelled');
+    // Nothing was ever charged, so nothing is owed.
+    expect(after.refundStatus).toBe('none');
+    expect(after.cancelReason).toMatch(/not paid/i);
+  });
+
+  it('leaves an unpaid seat alone while the window is still open', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const { exam, session } = await makeExamWithSession(); // deadline in the future
+    const midCheckout = await makePaidBooking({
+      user: await makeUser(),
+      exam,
+      session,
+      center,
+      coordinates: SIKAR,
+      status: 'pending',
+    });
+
+    await releaseUnpaidBookings();
+    expect((await Booking.findById(midCheckout._id)).status).toBe('pending');
+  });
+
+  it('never touches a seat that was paid for', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const { exam, session } = await closedBookingWindow();
+    const paid = await makePaidBooking({
+      user: await makeUser(),
+      exam,
+      session,
+      center,
+      coordinates: SIKAR,
+    });
+
+    await releaseUnpaidBookings();
+    expect((await Booking.findById(paid._id)).status).toBe('paid');
+  });
+
+  it('frees the seat before routing plans the cohort', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const { exam, session } = await closedBookingWindow();
+
+    await makePaidBooking({
+      user: await makeUser(),
+      exam,
+      session,
+      center,
+      coordinates: SIKAR,
+      status: 'pending',
+    });
+    await makePaidBooking({
+      user: await makeUser(),
+      exam,
+      session,
+      center,
+      coordinates: JAIPUR,
+    });
+
+    await sweepRouting(silent);
+
+    // Only the paid passenger is on a bus; the abandoned one is not counted.
+    const buses = await Bus.find({ session: session._id });
+    const seated = buses.reduce((n, b) => n + b.seatsUsed, 0);
+    expect(seated).toBe(1);
   });
 });
 

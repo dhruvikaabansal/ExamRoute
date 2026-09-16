@@ -32,17 +32,42 @@ import {
  * about the journey depends on a message we cannot guarantee.
  */
 
-/** Loads a booking the caller owns and is allowed to pay for. */
+/**
+ * Loads a booking the caller owns and is allowed to pay for.
+ *
+ * The deadline check is the important one, and it was missing. Bookings closed
+ * on the deadline, but *paying* did not — so a seat reserved and left unpaid
+ * could be settled days later, after the buses for that sitting had already
+ * been formed, seated and published. The money arrived for a journey that was
+ * already planned without them.
+ *
+ * Once the window shuts, the cohort is final. That is the whole reason routing
+ * can produce short routes: it sees everybody at once. Letting payments trickle
+ * in afterwards quietly reopens a decision that has already been made, and
+ * lands the problem on whoever is holding the boarding list.
+ */
 async function loadPayableBooking(req) {
   const booking = await Booking.findOne({
     _id: assertObjectId(req.body.bookingId, 'bookingId'),
     user: req.user._id,
-  });
+  }).populate('exam session');
+
   if (!booking) throw ApiError.notFound('Booking not found');
   if (booking.status === 'cancelled')
     throw ApiError.badRequest('This booking was cancelled');
   if (['paid', 'assigned'].includes(booking.status))
     throw ApiError.badRequest('Already paid');
+
+  const deadline = booking.exam?.bookingDeadline;
+  if (deadline && new Date(deadline).getTime() < Date.now())
+    throw ApiError.badRequest(
+      'Bookings for this exam have closed, so this seat can no longer be paid for. ' +
+        'It has been released for someone else.'
+    );
+
+  if (booking.session && new Date(booking.session.gateClose).getTime() < Date.now())
+    throw ApiError.badRequest('That exam session has already taken place');
+
   return booking;
 }
 

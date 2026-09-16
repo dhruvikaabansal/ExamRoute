@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { createApp } from '../src/app.js';
 import Booking from '../src/models/Booking.js';
 import Bus from '../src/models/Bus.js';
+import Exam from '../src/models/Exam.js';
 import ExamSession from '../src/models/ExamSession.js';
 import { runRoutingForSession } from '../src/services/routingEngine.js';
 import {
@@ -962,6 +963,37 @@ describe.skipIf(!dbReady)('payments', () => {
       stranger
     );
     expect(res.status).toBe(404);
+  });
+
+  /*
+    Bookings closed on the deadline but paying did not, so a seat reserved and
+    left unpaid could be settled days later — after the buses for that sitting
+    had been formed, seated and published. The money arrived for a journey
+    already planned without them.
+  */
+  it('refuses payment once the booking window has closed', async () => {
+    await makeStops();
+    const center = await makeCenter();
+    const { exam, session } = await makeExamWithSession();
+    const user = await makeUser();
+    const booking = await makePaidBooking({
+      user,
+      exam,
+      session,
+      center,
+      coordinates: SIKAR,
+      status: 'pending',
+    });
+
+    // The window shuts while the student is still deciding.
+    await Exam.findByIdAndUpdate(exam._id, { bookingDeadline: new Date(Date.now() - 60_000) });
+
+    const res = await asUser(request(app).post('/api/payments/order'), user).send({
+      bookingId: String(booking._id),
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/closed/i);
   });
 
   it('will not charge twice for a booking already paid', async () => {

@@ -489,6 +489,39 @@ their project is fully secure get picked apart.)*
 
 ---
 
+## 6b. Known limitations, named on purpose
+
+Volunteering these is stronger than being caught by them. All three are
+deliberate trades, not oversights.
+
+**Passenger ride time is not in the objective.** Clustering scores bus count
+first and kilometres second, with no term for how long any one passenger sits
+on the bus. The first town on a long corridor can end up riding the whole
+detour — a three-hour journey becomes six. The fix is to weight the cost
+function by passenger-minutes, or cap ride time and accept an extra bus. That
+trades cost against comfort, which is an operator's call rather than a
+programmer's.
+
+**There are no notifications.** Email was removed because it could not be
+delivered reliably without a verified domain, and a confirmation that silently
+does not arrive is worse than none — the student stops looking for the
+information and starts waiting for it. So the ticket lives in the app: the
+confirmation screen, My Bookings, the QR, and the departure time once routing
+runs. Nothing about the journey depends on a message that might not arrive. For
+this audience the right channel is SMS rather than email, and that is the next
+thing I would add.
+
+**Boarding requires an admin account.** The boarding list and the board
+endpoint are `adminOnly`, so in practice bus staff either share one account or
+an admin travels. A `conductor` role existed and was removed, because it was
+only reachable by an admin granting it and an account type nobody is ever given
+is surface to maintain rather than protection. The consistent fix is the
+pattern already used for drivers — a per-bus capability link — but the boarding
+list carries passenger phone numbers, so that link would need a tighter scope
+than the driver's before it could be handed out.
+
+---
+
 ## 7. Bugs found and fixed
 
 These are worth knowing because "what went wrong" is a better interview answer

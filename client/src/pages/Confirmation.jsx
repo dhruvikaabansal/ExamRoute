@@ -122,10 +122,16 @@ export default function Confirmation() {
           { to: '/exams', label: 'Book another exam' },
         ]}
       >
-        Buses are formed once bookings close for this sitting — we group everyone
-        travelling to the same centre, then work backwards from the reporting time to
-        set departures. Your bus, your stop&apos;s exact pickup time and a live
-        tracking link all appear under <b>My Bookings</b> as soon as that runs.
+        Buses are formed once bookings close
+        {booking.exam?.bookingDeadline && (
+          <>
+            {' '}
+            on <b>{fmtDate(booking.exam.bookingDeadline)}</b>
+          </>
+        )}{' '}
+        — we group everyone travelling to the same centre, then work backwards from the
+        reporting time to set departures. Your bus, your stop&apos;s exact pickup time and a
+        live tracking link all appear under <b>My Bookings</b> as soon as that runs.
       </NextStep>
     </div>
   );
